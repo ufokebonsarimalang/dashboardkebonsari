@@ -1248,11 +1248,16 @@ function renderPromoSOP() {
   const promoList = Array.isArray(allPromo) ? allPromo : Object.values(allPromo || {});
   const rulesList = Array.isArray(allRules) ? allRules : Object.values(allRules || {});
   return `
-    <div class="card">
+       <div class="card">
       <h3>Tambah Promo</h3>
       <div style="margin-bottom:12px;"><label>Judul</label><input type="text" id="promo_judul" placeholder="PROMO BULAN INI"></div>
       <div style="margin-bottom:12px;"><label>Periode</label><input type="text" id="promo_periode" placeholder="Oktober 2026"></div>
-      <div style="margin-bottom:16px;"><label>Detail</label><textarea id="promo_detail" rows="3" placeholder="Detail promo..."></textarea></div>
+      
+      <!-- KOLOM DETAIL DIPISAH -->
+      <div style="margin-bottom:10px;"><label>Detail Promo 1</label><input type="text" id="promo_detail_1" placeholder="Contoh: Free Bracket Pembelian LED TV 32"></div>
+      <div style="margin-bottom:10px;"><label>Detail Promo 2 (Opsional)</label><input type="text" id="promo_detail_2" placeholder="Contoh: Free Pasang AC Inverter"></div>
+      <div style="margin-bottom:16px;"><label>Detail Promo 3 (Opsional)</label><input type="text" id="promo_detail_3" placeholder="Contoh: Diskon 10%"></div>
+      
       <button class="btn-primary btn-full" onclick="tambahPromo()">Tambah Promo</button>
       <div id="promoMsg" style="margin-top:12px;"></div>
     </div>
@@ -1300,19 +1305,34 @@ function renderPromoSOP() {
 async function tambahPromo() {
   const judul = document.getElementById('promo_judul').value.trim();
   const periode = document.getElementById('promo_periode').value.trim();
-  const detail = document.getElementById('promo_detail').value.trim();
+  
+  const d1 = document.getElementById('promo_detail_1').value.trim();
+  const d2 = document.getElementById('promo_detail_2').value.trim();
+  const d3 = document.getElementById('promo_detail_3').value.trim();
+  
+  // Gabungkan menjadi array, lalu ubah ke string dengan enter (\n)
+  const detailArray = [d1, d2, d3].filter(Boolean);
+  const detailGabungan = detailArray.join('\n');
+
   const msg = document.getElementById('promoMsg');
   if (!judul) { msg.innerHTML = '<div class="alert err">Judul wajib!</div>'; return; }
+  
   try {
     const snap = await window.dbGet(window.dbRef(window.db, 'info/promo'));
     let arr = snap.exists() ? snap.val() : [];
     if (!Array.isArray(arr)) arr = Object.values(arr);
-    arr.push({ judul, periode, detail });
+    
+    arr.push({ judul, periode, detail: detailGabungan });
     await window.dbSet(window.dbRef(window.db, 'info/promo'), arr);
     msg.innerHTML = '<div class="alert ok">✅ Ditambahkan!</div>';
+    
+    // Reset Form
     document.getElementById('promo_judul').value = '';
     document.getElementById('promo_periode').value = '';
-    document.getElementById('promo_detail').value = '';
+    document.getElementById('promo_detail_1').value = '';
+    document.getElementById('promo_detail_2').value = '';
+    document.getElementById('promo_detail_3').value = '';
+    
     setTimeout(() => msg.innerHTML = '', 3000);
   } catch (err) { msg.innerHTML = `<div class="alert err">❌ ${err.message}</div>`; }
 }
