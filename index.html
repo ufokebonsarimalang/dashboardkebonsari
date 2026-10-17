@@ -2171,19 +2171,29 @@ function renderInfoList(arr, jenis) {
     return `<div class="empty-state">${ICONS.empty}<div class="pesan">Belum ada data</div></div>`;
   }
   
-   if (jenis === 'promo') {
+    if (jenis === 'promo') {
     return list.map(x => {
       const judul = escapeHtml((x.judul || '-').trim());
       const periode = escapeHtml((x.periode || '').trim());
       
-      // Ini trik untuk merapikan teks yang berantakan
-      let rawDetail = escapeHtml((x.detail || '').trim());
-      // 1. Mengubah enter (newline) menjadi <br> agar rapi di HTML
-      // 2. Menghapus spasi/tab berlebih di awal kalimat (maju-maju)
-      let cleanDetail = rawDetail
-          .replace(/\n/g, '<br>')            // ubah enter jadi baris baru
-          .replace(/^[ \t]+/gm, '')          // hapus spasi/tab di awal setiap baris
-          .replace(/[ \t]+/g, ' ');          // ubah spasi ganda jadi satu spasi
+      // Ambil detail dan pecah berdasarkan Enter (newline)
+      const rawDetail = (x.detail || '').trim();
+      const detailArray = rawDetail.split('\n').filter(t => t.trim() !== '');
+
+      // Buat list poin-poin (bullet) agar rapi
+      let detailHtml = '';
+      if (detailArray.length > 0) {
+        detailHtml = `
+          <div style="border-top:1px solid rgba(255,255,255,0.06); padding-top:12px; margin-top:12px;">
+            ${detailArray.map((teks, i) => `
+              <div style="display:flex; align-items:flex-start; gap:8px; margin-bottom:8px; color:#e5e7eb; font-size:13.5px; line-height:1.5;">
+                <div style="color:#38bdf8; font-weight:900; margin-top:1px;">•</div>
+                <div>${escapeHtml(teks)}</div>
+              </div>
+            `).join('')}
+          </div>
+        `;
+      }
 
       return `
         <div class="info-block" style="
@@ -2207,25 +2217,13 @@ function renderInfoList(arr, jenis) {
               padding: 4px 10px; 
               border-radius: 6px; 
               font-size: 11.5px; 
-              margin-bottom: 12px; 
               font-weight: 700;
             ">
               📅 ${periode}
             </div>
           ` : ''}
           
-          ${cleanDetail ? `
-            <div style="
-              border-top: 1px solid rgba(255,255,255,0.06); 
-              padding-top: 12px; 
-              color: #e5e7eb; 
-              font-size: 13.5px; 
-              line-height: 1.7; 
-              text-align: justify;
-            ">
-              ${cleanDetail}
-            </div>
-          ` : ''}
+          ${detailHtml}
         </div>
       `;
     }).join('');
