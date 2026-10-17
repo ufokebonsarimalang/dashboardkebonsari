@@ -1462,14 +1462,21 @@ function loadInfoRealtime() {
   if (infoListenerAttached) return;
   infoListenerAttached = true;
   if (!window.firebaseAuth || !window.firebaseAuth.currentUser) return;
+  
+  // Memantau perubahan data secara real-time
   window.dbOnValue(window.dbRef(window.db, 'info'), snap => {
     if (snap.exists()) {
       const data = snap.val();
       infoData.promo = data.promo || [];
       infoData.rules = data.rules || [];
+    } else {
+      infoData.promo = [];
+      infoData.rules = [];
     }
+    
+    // Jika promotor sedang membuka menu Promo atau SOP, update layarnya otomatis
     if (currentMenu === 'promo' || currentMenu === 'sop') {
-      tampilkanDetail(currentMenu);
+      tampilkanDetail(currentMenu, true); // parameter true = jangan tampilkan loading
     }
   });
 }
@@ -1743,7 +1750,7 @@ function kembaliKeMenu() {
 }
 window.kembaliKeMenu = kembaliKeMenu;
 
-function tampilkanDetail(menuKey) {
+async function tampilkanDetail(menuKey, isRealtimeUpdate = false) {
   currentMenu = menuKey;
   document.getElementById('menuGrid').classList.add('hidden');
   const detailEl = document.getElementById('detailView');
@@ -1751,6 +1758,7 @@ function tampilkanDetail(menuKey) {
   const isAdmin = currentUser.role === 'ADMIN';
   const menuAdaDropdown = ['absensi', 'penjualan', 'uc', 'brand'];
   const showSelector = isAdmin && menuAdaDropdown.includes(menuKey);
+  
   if (showSelector) {
     document.getElementById('promotorSelector').classList.remove('hidden');
     const hidden = document.getElementById('selectPromotor');
@@ -1773,6 +1781,7 @@ function tampilkanDetail(menuKey) {
   } else {
     document.getElementById('promotorSelector').classList.add('hidden');
   }
+
   const titles = {
     absensi: { title: 'Absensi', subtitle: 'Rekap kehadiran dan status finger harian' },
     penjualan: { title: 'Penjualan', subtitle: 'Omzet produk harian dan perolehan unit' },
@@ -1784,27 +1793,62 @@ function tampilkanDetail(menuKey) {
     denda: { title: 'Denda & Keterlambatan', subtitle: 'Rekap denda UC & late semua promotor' }
   };
   const t = titles[menuKey] || { title: 'Detail', subtitle: '' };
+
+  // JIKA INI BUKAN UPDATE REALTIME (BARU DIKLIK), KOSONGKAN DULU
+  if (!isRealtimeUpdate) {
+    detailEl.innerHTML = `
+      <div class="back-bar">
+        <button class="back-btn" onclick="kembaliKeMenu()">${ICONS.back} Kembali ke Menu</button>
+      </div>
+      <h2 class="detail-title">${t.title}</h2>
+      <p class="detail-subtitle">${t.subtitle}</p>
+      <div style="text-align:center; padding:20px; color:#9ca3af;">Memuat...</div>
+    `;
+  }
+
+  // AMBIL DATA DARI MEMORI (CACHE) ATAU SERVER
   let content = '';
   if (menuKey === 'absensi') content = renderAbsensi();
   else if (menuKey === 'penjualan') content = renderPenjualan();
   else if (menuKey === 'uc') content = renderUC();
   else if (menuKey === 'brand') content = renderBrand();
-  else if (menuKey === 'promo') content = renderInfoList(infoData.promo, 'promo');
-  else if (menuKey === 'sop') content = renderInfoList(infoData.rules, 'rules');
   else if (menuKey === 'perolehan') content = renderPerolehan();
   else if (menuKey === 'denda') content = renderDenda();
+  else if (menuKey === 'promo' || menuKey === 'sop') {
+    
+    // Paksa ambil data paling baru di latar belakang (TANPA menahan layar)
+    window.dbGet(window.dbRef(window.db, 'info')).then(snap => {
+      if (snap.exists()) {
+        const data = snap.val();
+        infoData.promo = data.promo || [];
+        infoData.rules = data.rules || [];
+        // Jika datanya beda dengan yang di layar, gambar ulang
+        if (currentMenu === 'promo' || currentMenu === 'sop') {
+          const newContent = menuKey === 'promo' ? renderInfoList(infoData.promo, 'promo') : renderInfoList(infoData.rules, 'rules');
+          const container = detailEl.querySelector('.content-wrap');
+          if (container) container.innerHTML = newContent;
+        }
+      }
+    }).catch(err => console.error(err));
+
+    // Tampilkan data yang ada di memori saat ini (instan)
+    if (menuKey === 'promo') content = renderInfoList(infoData.promo, 'promo');
+    else content = renderInfoList(infoData.rules, 'rules');
+  }
+
+  // RENDER LAYAR AKHIR
   detailEl.innerHTML = `
     <div class="back-bar">
       <button class="back-btn" onclick="kembaliKeMenu()">${ICONS.back} Kembali ke Menu</button>
     </div>
     <h2 class="detail-title">${t.title}</h2>
     <p class="detail-subtitle">${t.subtitle}</p>
-    ${content}
+    <div class="content-wrap">${content}</div>
   `;
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+  
+  if (!isRealtimeUpdate) window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 window.tampilkanDetail = tampilkanDetail;
-
 /* ===== HELPER ===== */
 function tanggalKeNama(tglStr) {
   if (!tglStr) return '-';
