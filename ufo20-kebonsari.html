@@ -23,40 +23,51 @@
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getDatabase, ref, set, get, update, remove, onValue, push } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
-import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
 const firebaseConfig = {
-
   apiKey: "AIzaSyCcBuaevlaemlP2mX87gGi2JwGR29Y05as",
-
   authDomain: "dashboardkebonsari.firebaseapp.com",
-
   databaseURL: "https://dashboardkebonsari-default-rtdb.asia-southeast1.firebasedatabase.app",
-
   projectId: "dashboardkebonsari",
-
   storageBucket: "dashboardkebonsari.firebasestorage.app",
-
   messagingSenderId: "68113369328",
-
   appId: "1:68113369328:web:200be7e778bdc9104b5a35"
-
 };
-
 
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const auth = getAuth(app);
 
-signInAnonymously(auth).then(() => {
-  window.db = db; window.dbRef = ref; window.dbSet = set; window.dbGet = get;
-  window.dbUpdate = update; window.dbRemove = remove; window.dbOnValue = onValue;
-  window.dbPush = push;
-  window.dispatchEvent(new Event('firebase-ready'));
-}).catch(err => showToast("Gagal koneksi Firebase: " + err.message, "error"));
+// Ekspos fungsi ke global agar bisa dipakai di script bawah
+window.db = db; window.dbRef = ref; window.dbSet = set; window.dbGet = get;
+window.dbUpdate = update; window.dbRemove = remove; window.dbOnValue = onValue;
+window.dbPush = push;
+window.firebaseAuth = auth;
+window.firebaseSignInWithPopup = signInWithPopup;
+window.firebaseGoogleAuthProvider = GoogleAuthProvider;
+window.firebaseSignOut = signOut;
 
-onAuthStateChanged(auth, user => {
-  if (!user) setTimeout(() => location.reload(), 1000);
+// Cek status login secara otomatis
+onAuthStateChanged(auth, async (user) => {
+  if (user && user.email) {
+    // Cek apakah email ada di whitelist dan rolenya ADMIN
+    const emailKey = user.email.replace(/\./g, ',');
+    try {
+      const snap = await get(ref(db, 'users/whitelist/' + emailKey));
+      if (snap.exists() && snap.val().role === 'ADMIN') {
+        window.adminUser = user;
+      } else {
+        showToast('Akun Anda bukan Admin!', 'error');
+        await signOut(auth);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  } else {
+    window.adminUser = null;
+  }
+  window.dispatchEvent(new Event('firebase-ready'));
 });
 </script>
 
@@ -262,18 +273,21 @@ button:active { transform: translateY(0); }
 
   <div id="loginBox">
     <div class="card">
-      <h3><svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> Login Admin</h3>
-      <label>PIN Admin</label>
-      <input type="password" id="pinAdmin" placeholder="••••" maxlength="6" inputmode="numeric" style="text-align:center; font-size:24px; letter-spacing:12px; font-weight:800; padding:16px;" oninput="this.value = this.value.replace(/\D/g,'')" onkeypress="if(event.key === 'Enter') loginAdmin()">
-      <div style="height:20px;"></div>
-      <button class="btn-primary btn-full" onclick="loginAdmin()">
-        <svg viewBox="0 0 24 24"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
-        Masuk
+      <h3 style="justify-content: center; margin-bottom: 20px;">Login Admin</h3>
+      
+      <button class="btn-primary btn-full" onclick="loginAdminGoogle()" style="padding: 16px; font-size: 15px; border-radius: 12px; display: flex; justify-content: center; gap: 10px; align-items: center;">
+        <svg viewBox="0 0 48 48" width="20" height="20">
+            <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+            <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+            <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+            <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+        </svg>
+        Masuk dengan Google
       </button>
+      
       <div id="loginError" class="alert err hidden" style="margin-top:16px;"></div>
     </div>
   </div>
-
   <div id="panelAdmin" class="hidden">
     <div class="tabs">
       <button class="tab-btn active" onclick="switchTab('dash', event)">
@@ -456,54 +470,64 @@ window.addEventListener('firebase-ready', async () => {
   document.getElementById('badgeBulan').classList.remove('hidden');
   document.getElementById('badgeBulan').innerHTML = '<svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:currentColor;stroke-width:2.5;fill:none;display:inline-block;vertical-align:middle;margin-right:6px;"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> ' + getNamaBulanIndo(BULAN_INI);
   
-  if (savedPin) {
+  // Jika sudah login sebagai admin (dari fungsi onAuthStateChanged di head)
+  if (window.adminUser) {
     document.getElementById('loginBox').classList.add('hidden');
     document.getElementById('panelAdmin').classList.remove('hidden');
     document.getElementById('headerUser').classList.remove('hidden');
     document.getElementById('btnLogoutHeader').classList.remove('hidden');
+    document.getElementById('headerUser').innerHTML = `👑 ${window.adminUser.email}`;
     mulaiAdmin();
     setTimeout(cekDanTawarkanResetBulan, 1500);
+  } else {
+    document.getElementById('loginBox').classList.remove('hidden');
+    document.getElementById('panelAdmin').classList.add('hidden');
   }
 });
 
-/* ===== LOGIN ===== */
-async function loginAdmin() {
-  const pin = document.getElementById('pinAdmin').value.trim();
+async function loginAdminGoogle() {
   const errEl = document.getElementById('loginError');
   errEl.classList.add('hidden');
-  if (!pin) { errEl.innerHTML = '⚠️ Masukkan PIN!'; errEl.classList.remove('hidden'); return; }
+  
   try {
-    const snap = await window.dbGet(window.dbRef(window.db, 'config/adminPin'));
-    let pinBenar = '8888';
-    if (snap.exists()) pinBenar = String(snap.val());
-    else await window.dbSet(window.dbRef(window.db, 'config/adminPin'), '8888');
-    if (pin === pinBenar) {
-      savedPin = pin;
-      localStorage.setItem('ufo_admin_pin3', pin);
+    const provider = new window.firebaseGoogleAuthProvider();
+    provider.setCustomParameters({ prompt: 'select_account' });
+    const result = await window.firebaseSignInWithPopup(window.firebaseAuth, provider);
+    const user = result.user;
+
+    // Verifikasi whitelist
+    const emailKey = user.email.replace(/\./g, ',');
+    const snap = await window.dbGet(window.dbRef(window.db, 'users/whitelist/' + emailKey));
+    
+    if (snap.exists() && snap.val().role === 'ADMIN') {
+      // SUKSES LOGIN ADMIN
       document.getElementById('loginBox').classList.add('hidden');
       document.getElementById('panelAdmin').classList.remove('hidden');
       document.getElementById('headerUser').classList.remove('hidden');
       document.getElementById('btnLogoutHeader').classList.remove('hidden');
+      document.getElementById('headerUser').innerHTML = `👑 ${snap.val().nama || user.email}`;
+      
       mulaiAdmin();
       setTimeout(cekDanTawarkanResetBulan, 1500);
     } else {
-      errEl.innerHTML = '❌ PIN salah!';
+      errEl.innerHTML = '❌ Akun Google ini tidak terdaftar sebagai Admin!';
       errEl.classList.remove('hidden');
+      await window.firebaseSignOut(window.firebaseAuth);
     }
   } catch (err) {
-    errEl.innerHTML = '❌ Gagal: ' + err.message;
+    errEl.innerHTML = '❌ Gagal Login: ' + err.message;
     errEl.classList.remove('hidden');
   }
 }
 
 function logoutAdmin() {
-  tampilkanKonfirmasi('Keluar?', 'Yakin ingin keluar dari panel admin?', () => {
-    localStorage.removeItem('ufo_admin_pin3');
-    savedPin = '';
+  tampilkanKonfirmasi('Keluar?', 'Yakin ingin keluar dari panel admin?', async () => {
+    try {
+      await window.firebaseSignOut(window.firebaseAuth);
+    } catch(e) {}
     location.reload();
   }, 'warning');
 }
-
 /* ===== LOAD DATA ===== */
 function mulaiAdmin() {
   window.dbOnValue(window.dbRef(window.db, 'users/promotor'), snap => {
