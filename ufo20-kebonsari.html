@@ -4,21 +4,40 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Admin — UFO Kebonsari</title>
-  <script>
- 
-  document.addEventListener('contextmenu', event => event.preventDefault());
-
- 
-  document.onkeydown = function(e) {
-    if (e.keyCode == 123) { return false; } // F12
-    if (e.ctrlKey && e.shiftKey && e.keyCode == 'I'.charCodeAt(0)) { return false; } // Ctrl+Shift+I
-    if (e.ctrlKey && e.shiftKey && e.keyCode == 'C'.charCodeAt(0)) { return false; } // Ctrl+Shift+C
-    if (e.ctrlKey && e.shiftKey && e.keyCode == 'J'.charCodeAt(0)) { return false; } // Ctrl+Shift+J
-    if (e.ctrlKey && e.keyCode == 'U'.charCodeAt(0)) { return false; } // Ctrl+U
-  }
+<script>
+document.addEventListener('contextmenu', e => e.preventDefault());
+document.onkeydown = function(e) {
+  if (e.keyCode == 123) return false;
+  if (e.ctrlKey && e.shiftKey && e.keyCode == 'I'.charCodeAt(0)) return false;
+  if (e.ctrlKey && e.shiftKey && e.keyCode == 'C'.charCodeAt(0)) return false;
+  if (e.ctrlKey && e.shiftKey && e.keyCode == 'J'.charCodeAt(0)) return false;
+  if (e.ctrlKey && e.keyCode == 'U'.charCodeAt(0)) return false;
+}
 </script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<!-- ===== showToast DULU supaya tidak race condition ===== -->
+<script>
+function showToast(pesan, tipe) {
+  tipe = tipe || 'info';
+  var old = document.querySelector('.custom-toast');
+  if (old) old.remove();
+  var toast = document.createElement('div');
+  toast.className = 'custom-toast';
+  var icon = '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>';
+  if (tipe === 'sukses') icon = '<svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>';
+  else if (tipe === 'error') icon = '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>';
+  toast.innerHTML = icon + ' <span>' + pesan + '</span>';
+  document.body.appendChild(toast);
+  setTimeout(function(){ toast.classList.add('show'); }, 10);
+  setTimeout(function(){
+    toast.classList.remove('show');
+    setTimeout(function(){ toast.remove(); }, 300);
+  }, 3500);
+}
+window.showToast = showToast;
+</script>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
@@ -39,7 +58,6 @@ const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const auth = getAuth(app);
 
-// Ekspos fungsi ke global agar bisa dipakai di script bawah
 window.db = db; window.dbRef = ref; window.dbSet = set; window.dbGet = get;
 window.dbUpdate = update; window.dbRemove = remove; window.dbOnValue = onValue;
 window.dbPush = push;
@@ -48,10 +66,8 @@ window.firebaseSignInWithPopup = signInWithPopup;
 window.firebaseGoogleAuthProvider = GoogleAuthProvider;
 window.firebaseSignOut = signOut;
 
-// Cek status login secara otomatis
 onAuthStateChanged(auth, async (user) => {
   if (user && user.email) {
-    // Cek apakah email ada di whitelist dan rolenya ADMIN
     const emailKey = user.email.replace(/\./g, ',');
     try {
       const snap = await get(ref(db, 'users/whitelist/' + emailKey));
@@ -61,9 +77,7 @@ onAuthStateChanged(auth, async (user) => {
         showToast('Akun Anda bukan Admin!', 'error');
         await signOut(auth);
       }
-    } catch (err) {
-      console.error(err);
-    }
+    } catch (err) { console.error(err); }
   } else {
     window.adminUser = null;
   }
@@ -73,85 +87,64 @@ onAuthStateChanged(auth, async (user) => {
 
 <style>
 :root {
-  --bg: #f4f7f6; 
-  --card: #ffffff; 
-  --soft: #f8fafc;
-  --text: #0f172a; 
-  --muted: #64748b; 
-  --border: #e2e8f0;
-  --primary: #4f46e5; 
-  --primary-dark: #4338ca;
-  --success: #10b981; 
-  --danger: #ef4444; 
-  --warning: #f59e0b;
+  --bg: #f4f7f6; --card: #ffffff; --soft: #f8fafc;
+  --text: #0f172a; --muted: #64748b; --border: #e2e8f0;
+  --primary: #4f46e5; --primary-dark: #4338ca;
+  --success: #10b981; --danger: #ef4444; --warning: #f59e0b;
   --gold: #d4af37;
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -4px rgba(0, 0, 0, 0.05);
+  --shadow-sm: 0 1px 2px 0 rgba(0,0,0,0.05);
+  --shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -2px rgba(0,0,0,0.05);
+  --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.05), 0 4px 6px -4px rgba(0,0,0,0.05);
   --radius: 16px;
 }
 * { box-sizing: border-box; font-family: 'Inter', sans-serif !important; -webkit-font-smoothing: antialiased; }
-body { margin: 0; padding: 24px; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; justify-content: center; align-items: flex-start; background-image: radial-gradient(at 0% 0%, hsla(253,16%,7%,0.03) 0, transparent 50%), radial-gradient(at 50% 0%, hsla(225,39%,30%,0.03) 0, transparent 50%); }
-.container { width: 100%; max-width: 960px; background: var(--card); border-radius: 24px; padding: 32px; box-shadow: 0 20px 40px -10px rgba(0,0,0,0.08); min-height: 90vh; border: 1px solid rgba(255,255,255,0.5); backdrop-filter: blur(20px); }
+body { margin: 0; padding: 24px; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; justify-content: center; align-items: flex-start; }
+.container { width: 100%; max-width: 1100px; background: var(--card); border-radius: 24px; padding: 32px; box-shadow: 0 20px 40px -10px rgba(0,0,0,0.08); min-height: 90vh; border: 1px solid rgba(255,255,255,0.5); }
 
-/* ===== HEADER ===== */
 .header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-bottom: 24px; border-bottom: 1px solid var(--border); margin-bottom: 28px; }
 .header-left { display: flex; align-items: center; gap: 16px; }
-.header-logo { width: 48px; height: 48px; border-radius: 14px; background: linear-gradient(135deg, var(--primary), #818cf8); display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 16px -4px rgba(79, 70, 229, 0.4); }
+.header-logo { width: 48px; height: 48px; border-radius: 14px; background: linear-gradient(135deg, var(--primary), #818cf8); display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 16px -4px rgba(79,70,229,0.4); }
 .header-logo svg { width: 24px; height: 24px; stroke: white; stroke-width: 2.5; fill: none; }
-.header-title h1 { margin: 0; font-size: 20px; font-weight: 800; color: var(--text); letter-spacing: -0.5px; }
+.header-title h1 { margin: 0; font-size: 20px; font-weight: 800; letter-spacing: -0.5px; }
 .header-title p { margin: 4px 0 0; font-size: 13px; color: var(--muted); font-weight: 500; }
-.header-right { display: flex; gap: 10px; align-items: center; }
+.header-right { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 .header-user { padding: 8px 16px; background: #ecfdf5; color: #065f46; border-radius: 99px; font-size: 12px; font-weight: 700; display: inline-flex; align-items: center; gap: 8px; border: 1px solid #a7f3d0; }
-.header-user::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: #10b981; box-shadow: 0 0 8px #10b981; }
+.header-user::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: #10b981; }
 .badge-bulan { padding: 8px 16px; background: #eff6ff; color: #1e40af; border-radius: 99px; font-size: 12px; font-weight: 800; display: inline-flex; align-items: center; gap: 6px; border: 1px solid #bfdbfe; }
 
-/* ===== TABS ===== */
 .tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 28px; background: var(--soft); padding: 8px; border-radius: 16px; border: 1px solid var(--border); }
-.tab-btn { flex: 1; min-width: 100px; padding: 12px 10px; border-radius: 12px; background: transparent; border: none; color: var(--muted); font-size: 12px; font-weight: 700; cursor: pointer; text-transform: uppercase; letter-spacing: 0.5px; display: flex; flex-direction: column; align-items: center; gap: 6px; transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1); }
-.tab-btn svg { width: 20px; height: 20px; stroke: currentColor; stroke-width: 2.2; fill: none; transition: all 0.25s; }
-.tab-btn:hover { background: white; color: var(--primary); box-shadow: var(--shadow-sm); }
-.tab-btn.active { background: white; color: var(--primary); box-shadow: 0 4px 12px rgba(79, 70, 229, 0.15); border: 1px solid rgba(79, 70, 229, 0.1); }
-.tab-btn.active svg { stroke: var(--primary); transform: scale(1.1); }
+.tab-btn { flex: 1; min-width: 110px; padding: 12px 10px; border-radius: 12px; background: transparent; border: none; color: var(--muted); font-size: 12px; font-weight: 700; cursor: pointer; text-transform: uppercase; letter-spacing: 0.5px; display: flex; flex-direction: column; align-items: center; gap: 6px; transition: all 0.25s; }
+.tab-btn svg { width: 20px; height: 20px; stroke: currentColor; stroke-width: 2.2; fill: none; }
+.tab-btn:hover { background: white; color: var(--primary); }
+.tab-btn.active { background: white; color: var(--primary); box-shadow: 0 4px 12px rgba(79,70,229,0.15); border: 1px solid rgba(79,70,229,0.1); }
 
-/* ===== CARDS & FORMS ===== */
-.card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; margin-bottom: 20px; box-shadow: var(--shadow-sm); transition: all 0.3s ease; }
-.card:hover { box-shadow: var(--shadow-lg); transform: translateY(-2px); }
-.card h3 { margin: 0 0 16px; font-size: 15px; font-weight: 800; color: var(--text); display: flex; align-items: center; gap: 10px; }
+.card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; margin-bottom: 20px; box-shadow: var(--shadow-sm); }
+.card h3 { margin: 0 0 16px; font-size: 15px; font-weight: 800; display: flex; align-items: center; gap: 10px; }
 .card h3 svg { width: 20px; height: 20px; stroke: var(--primary); stroke-width: 2.5; fill: none; }
 .card p { margin: 0 0 16px; font-size: 13px; color: var(--muted); line-height: 1.6; }
 
 label { display: block; font-size: 11px; font-weight: 800; color: var(--muted); text-transform: uppercase; margin-bottom: 8px; letter-spacing: 0.5px; }
 input, select, textarea { width: 100%; padding: 14px 16px; border-radius: 12px; border: 1px solid var(--border); background: var(--soft); font-size: 14px; font-weight: 600; color: var(--text); outline: none; transition: all 0.2s; }
-textarea { resize: vertical; font-family: 'Inter', sans-serif !important; }
-input:focus, select:focus, textarea:focus { border-color: var(--primary); background: white; box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.1); }
+input:focus, select:focus, textarea:focus { border-color: var(--primary); background: white; box-shadow: 0 0 0 4px rgba(79,70,229,0.1); }
 
-/* ===== BUTTONS ===== */
-button { padding: 12px 20px; border-radius: 12px; font-size: 13px; font-weight: 700; cursor: pointer; border: none; text-transform: uppercase; letter-spacing: 0.5px; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); display: inline-flex; justify-content: center; align-items: center; gap: 8px; }
+button { padding: 12px 20px; border-radius: 12px; font-size: 13px; font-weight: 700; cursor: pointer; border: none; text-transform: uppercase; letter-spacing: 0.5px; transition: all 0.2s; display: inline-flex; justify-content: center; align-items: center; gap: 8px; }
 button svg { width: 16px; height: 16px; stroke: currentColor; stroke-width: 2.5; fill: none; }
 button:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
-button:active { transform: translateY(0); }
-.btn-primary { background: linear-gradient(135deg, var(--primary), #6366f1); color: white; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25); }
-.btn-primary:hover { background: linear-gradient(135deg, var(--primary-dark), var(--primary)); box-shadow: 0 8px 20px rgba(79, 70, 229, 0.35); }
-.btn-success { background: linear-gradient(135deg, #10b981, #059669); color: white; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25); }
-.btn-success:hover { box-shadow: 0 8px 20px rgba(16, 185, 129, 0.35); }
-.btn-danger { background: linear-gradient(135deg, #ef4444, #dc2626); color: white; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.25); }
-.btn-danger:hover { box-shadow: 0 8px 20px rgba(239, 68, 68, 0.35); }
-.btn-warning { background: linear-gradient(135deg, #f59e0b, #d97706); color: white; box-shadow: 0 4px 12px rgba(245, 158, 11, 0.25); }
+.btn-primary { background: linear-gradient(135deg, var(--primary), #6366f1); color: white; box-shadow: 0 4px 12px rgba(79,70,229,0.25); }
+.btn-success { background: linear-gradient(135deg, #10b981, #059669); color: white; }
+.btn-danger { background: linear-gradient(135deg, #ef4444, #dc2626); color: white; }
+.btn-warning { background: linear-gradient(135deg, #f59e0b, #d97706); color: white; }
 .btn-soft { background: white; color: var(--text); border: 1px solid var(--border); }
-.btn-soft:hover { background: var(--soft); border-color: #cbd5e1; }
 .btn-sm { padding: 8px 14px; font-size: 11px; width: auto; border-radius: 8px; }
 .btn-full { width: 100%; }
 
-/* ===== UPLOAD AREA ===== */
-.file-wrap { border: 2px dashed #cbd5e1; border-radius: var(--radius); padding: 32px 20px; text-align: center; cursor: pointer; background: var(--soft); transition: all 0.25s; position: relative; overflow: hidden; }
+.file-wrap { border: 2px dashed #cbd5e1; border-radius: var(--radius); padding: 32px 20px; text-align: center; cursor: pointer; background: var(--soft); transition: all 0.25s; }
 .file-wrap:hover { background: #eff6ff; border-color: var(--primary); }
 .file-wrap svg { width: 48px; height: 48px; stroke: var(--primary); stroke-width: 1.5; fill: none; margin-bottom: 12px; }
 .file-wrap p { margin: 0; font-size: 14px; color: var(--muted); font-weight: 600; }
 .file-wrap strong { color: var(--primary); }
 .file-wrap input { display: none; }
 
-/* ===== ALERTS ===== */
 .alert { padding: 14px 16px; border-radius: 12px; font-size: 13px; font-weight: 600; margin-bottom: 16px; display: flex; align-items: flex-start; gap: 10px; line-height: 1.5; }
 .alert.ok { background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; }
 .alert.err { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
@@ -161,41 +154,37 @@ button:active { transform: translateY(0); }
 .spinner-dark { border: 2px solid rgba(0,0,0,0.1); border-top-color: var(--primary); }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* ===== LIST ITEMS ===== */
-.list-item { background: white; border: 1px solid var(--border); border-radius: 14px; padding: 16px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; gap: 16px; transition: all 0.2s; }
-.list-item:hover { box-shadow: var(--shadow); border-color: #cbd5e1; transform: translateX(4px); }
+.list-item { background: white; border: 1px solid var(--border); border-radius: 14px; padding: 16px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; gap: 16px; transition: all 0.2s; flex-wrap: wrap; }
+.list-item:hover { box-shadow: var(--shadow); border-color: #cbd5e1; }
 .list-item .kiri { flex: 1; min-width: 0; }
-.list-item .nama { font-size: 14px; font-weight: 700; color: var(--text); display: flex; align-items: center; gap: 8px; }
-.list-item .detail { font-size: 12px; color: var(--muted); margin-top: 4px; font-weight: 500; line-height: 1.5; }
-.list-item .kanan { display: flex; gap: 8px; flex-shrink: 0; align-items: center; }
+.list-item .nama { font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.list-item .detail { font-size: 12px; color: var(--muted); margin-top: 4px; font-weight: 500; line-height: 1.6; }
+.list-item .kanan { display: flex; gap: 8px; flex-shrink: 0; align-items: center; flex-wrap: wrap; }
 .list-item.late-item { border-left: 4px solid var(--warning); background: #fffbeb; }
 
-/* ===== STATS ===== */
 .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
-.stat-card { background: white; border: 1px solid var(--border); border-radius: 16px; padding: 20px 16px; text-align: center; transition: all 0.3s; }
-.stat-card:hover { box-shadow: var(--shadow-lg); transform: translateY(-4px); border-color: #cbd5e1; }
+.stat-card { background: white; border: 1px solid var(--border); border-radius: 16px; padding: 20px 16px; text-align: center; }
 .stat-card .label { font-size: 11px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
-.stat-card .value { font-size: 24px; font-weight: 900; color: var(--text); }
+.stat-card .value { font-size: 24px; font-weight: 900; }
 .stat-card.full { grid-column: 1 / -1; background: linear-gradient(135deg, #f0fdf4, #dcfce7); border-color: #bbf7d0; }
 .stat-card.success .value { color: #059669; }
 
-.late-marker { background: #fef3c7; border: 1px solid #fcd34d; border-radius: 8px; padding: 4px 10px; font-size: 10px; font-weight: 800; color: #92400e; text-transform: uppercase; letter-spacing: 0.5px; }
+.late-marker { background: #fef3c7; border: 1px solid #fcd34d; border-radius: 8px; padding: 4px 10px; font-size: 10px; font-weight: 800; color: #92400e; text-transform: uppercase; }
 
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+.form-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 16px; }
 
-.welcome-card { background: linear-gradient(135deg, #1e293b, #0f172a); color: white; border-radius: var(--radius); padding: 28px; margin-bottom: 24px; position: relative; overflow: hidden; box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.5); }
-.welcome-card::before { content: ''; position: absolute; top: -50px; right: -50px; width: 250px; height: 250px; background: radial-gradient(circle, rgba(255,255,255,0.15) 0%, transparent 70%); border-radius: 50%; }
-.welcome-card h2 { margin: 0 0 8px; font-size: 24px; font-weight: 800; position: relative; letter-spacing: -0.5px; }
-.welcome-card p { margin: 0; font-size: 14px; opacity: 0.8; position: relative; color: #cbd5e1; }
+.welcome-card { background: linear-gradient(135deg, #1e293b, #0f172a); color: white; border-radius: var(--radius); padding: 28px; margin-bottom: 24px; position: relative; overflow: hidden; }
+.welcome-card h2 { margin: 0 0 8px; font-size: 24px; font-weight: 800; }
+.welcome-card p { margin: 0; font-size: 14px; opacity: 0.8; color: #cbd5e1; }
 
-#loginBox { max-width: 400px; margin: 40px auto; animation: fadeIn 0.5s ease-out; }
-#loginBox .card { background: white; padding: 32px; border-radius: 24px; box-shadow: 0 20px 40px -10px rgba(0,0,0,0.1); }
+#loginBox { max-width: 400px; margin: 40px auto; }
+#loginBox .card { background: white; padding: 32px; border-radius: 24px; }
 #loginBox h3 { font-size: 20px; text-align: center; margin-bottom: 24px; justify-content: center; }
 
-/* ===== CUSTOM MODAL ===== */
-.modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(8px); display: flex; justify-content: center; align-items: center; z-index: 99999; opacity: 0; visibility: hidden; transition: all 0.3s ease; padding: 16px; }
+.modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15,23,42,0.6); backdrop-filter: blur(8px); display: flex; justify-content: center; align-items: center; z-index: 99999; opacity: 0; visibility: hidden; transition: all 0.3s; padding: 16px; overflow-y: auto; }
 .modal-overlay.active { opacity: 1; visibility: visible; }
-.modal-box { background: white; border-radius: 24px; padding: 32px; max-width: 400px; width: 100%; text-align: center; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); transform: scale(0.9) translateY(20px); transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); border: 1px solid rgba(255,255,255,0.2); }
+.modal-box { background: white; border-radius: 24px; padding: 32px; max-width: 500px; width: 100%; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); transform: scale(0.9) translateY(20px); transition: transform 0.3s; margin: auto; }
 .modal-overlay.active .modal-box { transform: scale(1) translateY(0); }
 .modal-icon { width: 72px; height: 72px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 20px; }
 .modal-icon.warning { background: #fef3c7; color: #d97706; }
@@ -203,45 +192,34 @@ button:active { transform: translateY(0); }
 .modal-icon.danger { background: #fef2f2; color: #ef4444; }
 .modal-icon.info { background: #eff6ff; color: #3b82f6; }
 .modal-icon svg { width: 36px; height: 36px; stroke: currentColor; stroke-width: 2.5; fill: none; }
-.modal-title { font-size: 20px; font-weight: 800; color: var(--text); margin-bottom: 12px; letter-spacing: -0.5px; }
-.modal-desc { font-size: 14px; color: var(--muted); line-height: 1.6; margin-bottom: 28px; white-space: pre-line; }
+.modal-title { font-size: 20px; font-weight: 800; margin-bottom: 12px; text-align: center; }
+.modal-desc { font-size: 14px; color: var(--muted); line-height: 1.6; margin-bottom: 28px; white-space: pre-line; text-align: center; }
 .modal-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .modal-actions.single { grid-template-columns: 1fr; }
 .modal-actions.three { grid-template-columns: 1fr; gap: 8px; }
-.modal-btn { padding: 14px 20px; border-radius: 12px; font-size: 13px; font-weight: 700; cursor: pointer; border: none; text-transform: uppercase; letter-spacing: 0.5px; transition: all 0.2s; display: inline-flex; justify-content: center; align-items: center; gap: 8px; font-family: inherit; }
+.modal-btn { padding: 14px 20px; border-radius: 12px; font-size: 13px; font-weight: 700; cursor: pointer; border: none; text-transform: uppercase; letter-spacing: 0.5px; display: inline-flex; justify-content: center; align-items: center; gap: 8px; font-family: inherit; }
 .modal-btn-cancel { background: var(--soft); color: var(--text); border: 1px solid var(--border); }
-.modal-btn-cancel:hover { background: var(--border); }
-.modal-btn-ok-primary { background: linear-gradient(135deg, var(--primary), #6366f1); color: white; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25); }
-.modal-btn-ok-danger { background: linear-gradient(135deg, #ef4444, #dc2626); color: white; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.25); }
-.modal-btn-ok-success { background: linear-gradient(135deg, #10b981, #059669); color: white; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25); }
-.modal-btn-ok-warning { background: linear-gradient(135deg, #f59e0b, #d97706); color: white; box-shadow: 0 4px 12px rgba(245, 158, 11, 0.25); }
+.modal-btn-ok-primary { background: linear-gradient(135deg, var(--primary), #6366f1); color: white; }
+.modal-btn-ok-danger { background: linear-gradient(135deg, #ef4444, #dc2626); color: white; }
+.modal-btn-ok-success { background: linear-gradient(135deg, #10b981, #059669); color: white; }
+.modal-btn-ok-warning { background: linear-gradient(135deg, #f59e0b, #d97706); color: white; }
 
-/* ===== CUSTOM TOAST ===== */
-.custom-toast {
-  position: fixed; top: 24px; left: 50%; transform: translateX(-50%) translateY(-20px);
-  background: rgba(15, 23, 42, 0.95); color: #ffffff; padding: 16px 24px; border-radius: 14px;
-  font-size: 14px; font-weight: 600; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-  border: 1px solid rgba(255, 255, 255, 0.1); z-index: 999999; opacity: 0; visibility: hidden;
-  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); display: flex; align-items: center; gap: 12px;
-  backdrop-filter: blur(10px); max-width: 90%;
-}
+.custom-toast { position: fixed; top: 24px; left: 50%; transform: translateX(-50%) translateY(-20px); background: rgba(15,23,42,0.95); color: #fff; padding: 16px 24px; border-radius: 14px; font-size: 14px; font-weight: 600; box-shadow: 0 10px 30px rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); z-index: 999999; opacity: 0; visibility: hidden; transition: all 0.3s; display: flex; align-items: center; gap: 12px; backdrop-filter: blur(10px); max-width: 90%; }
 .custom-toast.show { opacity: 1; visibility: visible; transform: translateX(-50%) translateY(0); }
 .custom-toast svg { width: 20px; height: 20px; stroke: currentColor; stroke-width: 2.5; fill: none; }
 
 .hidden { display: none !important; }
-.sop-preview { width: 64px; height: 64px; object-fit: cover; border-radius: 10px; border: 1px solid var(--border); box-shadow: var(--shadow-sm); }
-
-@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+.sop-preview { width: 64px; height: 64px; object-fit: cover; border-radius: 10px; border: 1px solid var(--border); }
 
 @media (max-width: 768px) {
   body { padding: 12px; }
   .container { padding: 20px; border-radius: 20px; }
   .header { flex-direction: column; align-items: flex-start; gap: 16px; }
-  .header-right { width: 100%; justify-content: space-between; flex-wrap: wrap; }
-  .tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .header-right { width: 100%; justify-content: space-between; }
+  .tabs { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
   .tab-btn { padding: 12px 8px; font-size: 11px; }
   .stats-grid { grid-template-columns: 1fr 1fr; }
-  .form-grid { grid-template-columns: 1fr; }
+  .form-grid, .form-grid-3 { grid-template-columns: 1fr; }
   .list-item { flex-direction: column; align-items: stretch; gap: 12px; }
   .list-item .kanan { justify-content: flex-end; }
   .modal-actions.three { grid-template-columns: 1fr; }
@@ -274,20 +252,19 @@ button:active { transform: translateY(0); }
   <div id="loginBox">
     <div class="card">
       <h3 style="justify-content: center; margin-bottom: 20px;">Login Admin</h3>
-      
       <button class="btn-primary btn-full" onclick="loginAdminGoogle()" style="padding: 16px; font-size: 15px; border-radius: 12px; display: flex; justify-content: center; gap: 10px; align-items: center;">
         <svg viewBox="0 0 48 48" width="20" height="20">
-            <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
-            <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
-            <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
-            <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+          <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+          <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+          <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+          <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
         </svg>
         Masuk dengan Google
       </button>
-      
       <div id="loginError" class="alert err hidden" style="margin-top:16px;"></div>
     </div>
   </div>
+
   <div id="panelAdmin" class="hidden">
     <div class="tabs">
       <button class="tab-btn active" onclick="switchTab('dash', event)">
@@ -298,13 +275,9 @@ button:active { transform: translateY(0); }
         <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
         Upload
       </button>
-      <button class="tab-btn" onclick="switchTab('promotor', event)">
+      <button class="tab-btn" onclick="switchTab('master', event)">
         <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-        Promotor
-      </button>
-      <button class="tab-btn" onclick="switchTab('whitelist', event)">
-        <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/><polyline points="16 11 18 13 22 9"/></svg>
-        Whitelist
+        Master Promotor
       </button>
       <button class="tab-btn" onclick="switchTab('terlambat', event)">
         <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
@@ -323,144 +296,172 @@ button:active { transform: translateY(0); }
   </div>
 </div>
 
+<!-- Modal Konfirmasi -->
 <div id="modalPopup" class="modal-overlay">
   <div class="modal-box">
-    <div class="modal-icon warning" id="modalIcon">
-      <svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-    </div>
+    <div class="modal-icon warning" id="modalIcon"></div>
     <div class="modal-title" id="modalTitle">Konfirmasi</div>
-    <div class="modal-desc" id="modalDesc">Yakin ingin melanjutkan?</div>
-    <div class="modal-actions" id="modalActions">
-      <button class="modal-btn modal-btn-cancel" onclick="tutupModal()">Batal</button>
-      <button class="modal-btn modal-btn-ok-primary" id="modalBtnOk" onclick="konfirmasiModal()">OK</button>
+    <div class="modal-desc" id="modalDesc">Yakin?</div>
+    <div class="modal-actions" id="modalActions"></div>
+  </div>
+</div>
+
+<!-- Modal Form Master Promotor -->
+<div id="modalForm" class="modal-overlay">
+  <div class="modal-box" style="max-width:600px;">
+    <div class="modal-title" id="formTitle">Tambah Promotor</div>
+    <input type="hidden" id="f_keyLama">
+    <div class="form-grid">
+      <div>
+        <label>Nama Finger</label>
+        <input type="text" id="f_namaFinger" placeholder="Contoh: ARIYANTO">
+      </div>
+      <div>
+        <label>Nama Sales ID</label>
+        <input type="text" id="f_namaSalesId" placeholder="Contoh: Ginanjar">
+      </div>
+    </div>
+    <div style="margin-bottom:12px;">
+      <label>Nama Tampil di Web</label>
+      <input type="text" id="f_namaAbsen" placeholder="Contoh: ARI MIDEA">
+      <p style="font-size:11px; color:var(--muted); margin-top:4px;">⚠️ Ini jadi identitas unik. Jika diubah, data lama akan dimigrasi otomatis.</p>
+    </div>
+    <div class="form-grid">
+      <div>
+        <label>Email Login (Google)</label>
+        <input type="email" id="f_email" placeholder="Kosongkan jika tidak bisa login">
+      </div>
+      <div>
+        <label>Role</label>
+        <select id="f_role">
+          <option value="PROMOTOR">PROMOTOR</option>
+          <option value="ADMIN">ADMIN</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-grid-3">
+      <div>
+        <label>Tampil di Web</label>
+        <select id="f_tampilWeb">
+          <option value="YA">YA</option>
+          <option value="TIDAK">TIDAK</option>
+        </select>
+      </div>
+      <div>
+        <label>Aktif</label>
+        <select id="f_aktif">
+          <option value="YA">YA</option>
+          <option value="TIDAK">TIDAK</option>
+        </select>
+      </div>
+      <div>
+        <label>Merk</label>
+        <input type="text" id="f_merk" placeholder="Contoh: LG">
+      </div>
+    </div>
+    <div class="form-grid">
+      <div>
+        <label>Target UC</label>
+        <input type="number" id="f_targetUC" value="16">
+      </div>
+      <div>
+        <label>Ikut UC</label>
+        <select id="f_ikutUC">
+          <option value="YA">YA</option>
+          <option value="TIDAK">TIDAK</option>
+        </select>
+      </div>
+    </div>
+    <div id="formMsg" style="margin-top:12px;"></div>
+    <div class="modal-actions" style="margin-top:16px;">
+      <button class="modal-btn modal-btn-cancel" onclick="tutupFormMaster()">Batal</button>
+      <button class="modal-btn modal-btn-ok-primary" onclick="simpanMasterPromotor()">Simpan</button>
     </div>
   </div>
 </div>
 
 <script>
-/* ===== CUSTOM TOAST & MODAL ===== */
-function showToast(pesan, tipe = 'info') {
-  const oldToast = document.querySelector('.custom-toast');
-  if (oldToast) oldToast.remove();
-
-  const toast = document.createElement('div');
-  toast.className = 'custom-toast';
-  
-  let icon = '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>';
-  if (tipe === 'sukses') icon = '<svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>';
-  else if (tipe === 'error') icon = '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>';
-
-  toast.innerHTML = `${icon} <span>${pesan}</span>`;
-  document.body.appendChild(toast);
-
-  setTimeout(() => toast.classList.add('show'), 10);
-  setTimeout(() => {
-    toast.classList.remove('show');
-    setTimeout(() => toast.remove(), 300);
-  }, 3500);
-}
-window.showToast = showToast;
-
+/* ===== MODAL HELPERS ===== */
 let _modalCallback = null;
-
 function tampilkanModal(title, desc, opts, onOk) {
   opts = opts || {};
   const type = opts.type || 'warning';
   const showCancel = opts.showCancel !== false;
-  
   document.getElementById('modalTitle').innerText = title;
   document.getElementById('modalDesc').innerText = desc;
-  
   const iconEl = document.getElementById('modalIcon');
   iconEl.className = 'modal-icon ' + type;
-  
   let iconSvg = '';
   if (type === 'warning') iconSvg = '<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>';
   else if (type === 'success') iconSvg = '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>';
   else if (type === 'danger') iconSvg = '<circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>';
   else iconSvg = '<circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>';
   iconEl.innerHTML = '<svg viewBox="0 0 24 24">' + iconSvg + '</svg>';
-  
   const actionsEl = document.getElementById('modalActions');
   const btnClass = type === 'danger' ? 'modal-btn-ok-danger' : type === 'success' ? 'modal-btn-ok-success' : type === 'warning' ? 'modal-btn-ok-warning' : 'modal-btn-ok-primary';
-  
   if (opts.customActions) {
     actionsEl.className = 'modal-actions ' + (opts.customActions.length === 3 ? 'three' : '');
-    actionsEl.innerHTML = opts.customActions.map(a => 
-      `<button class="modal-btn ${a.class}" onclick="${a.onclick}">${a.text}</button>`
-    ).join('');
+    actionsEl.innerHTML = opts.customActions.map(a => `<button class="modal-btn ${a.class}" onclick="${a.onclick}">${a.text}</button>`).join('');
   } else if (showCancel) {
     actionsEl.className = 'modal-actions';
-    actionsEl.innerHTML = `
-      <button class="modal-btn modal-btn-cancel" onclick="tutupModal()">${opts.cancelText || 'Batal'}</button>
-      <button class="modal-btn ${btnClass}" onclick="konfirmasiModal()">${opts.okText || 'OK'}</button>
-    `;
+    actionsEl.innerHTML = `<button class="modal-btn modal-btn-cancel" onclick="tutupModal()">${opts.cancelText || 'Batal'}</button><button class="modal-btn ${btnClass}" onclick="konfirmasiModal()">${opts.okText || 'OK'}</button>`;
   } else {
     actionsEl.className = 'modal-actions single';
     actionsEl.innerHTML = `<button class="modal-btn ${btnClass}" onclick="tutupModal()">${opts.okText || 'OK'}</button>`;
   }
-  
   _modalCallback = onOk || null;
   document.getElementById('modalPopup').classList.add('active');
 }
+function tutupModal() { document.getElementById('modalPopup').classList.remove('active'); _modalCallback = null; }
+function konfirmasiModal() { const cb = _modalCallback; tutupModal(); if (cb) cb(); }
+function tampilkanNotif(title, desc, type) { tampilkanModal(title, desc, { type: type || 'info', showCancel: false, okText: 'OK' }, null); }
+function tampilkanKonfirmasi(title, desc, onOk, type) { tampilkanModal(title, desc, { type: type || 'warning', showCancel: true }, onOk); }
 
-function tutupModal() {
-  document.getElementById('modalPopup').classList.remove('active');
-  _modalCallback = null;
-}
-
-function konfirmasiModal() {
-  const cb = _modalCallback;
-  tutupModal();
-  if (cb) cb();
-}
-
-function tampilkanNotif(title, desc, type) {
-  tampilkanModal(title, desc, { type: type || 'info', showCancel: false, okText: 'OK' }, null);
-}
-
-function tampilkanKonfirmasi(title, desc, onOk, type) {
-  tampilkanModal(title, desc, { type: type || 'warning', showCancel: true }, onOk);
-}
-
-/* ===== BULAN HELPER ===== */
-function getBulanIni() {
-  const d = new Date();
-  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
-}
+function getBulanIni() { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0'); }
 function getNamaBulanIndo(bulanStr) {
   const nama = ['','Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
   const [thn, bln] = bulanStr.split('-');
   return `${nama[parseInt(bln)]} ${thn}`;
 }
 
-/* ===== STATE ===== */
-let savedPin = localStorage.getItem('ufo_admin_pin3') || '';
 let currentTab = 'dash';
-let allPromotor = {};
+let allMaster = {};      // users/master_promotor
 let allPenjualan = {};
 let allAbsensi = {};
 let allPromo = [];
 let allRules = [];
-let allWhitelist = {};
-let _sopImageData = null;
 const BULAN_INI = getBulanIni();
 
-/* ===== HELPER: Cari promotorKey dari namaSales ===== */
-function cariPromotorKey(namaSales) {
-  const s = String(namaSales || '').trim().toUpperCase();
+function sanitizeKey(nama) { return String(nama || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_'); }
+
+function cariPromotorKeyBySalesId(namaSalesId) {
+  const s = String(namaSalesId || '').trim().toUpperCase();
   if (!s) return null;
-  for (const k of Object.keys(allPromotor)) {
-    const p = allPromotor[k];
-    const ns = String(p.namaSales || '').trim().toUpperCase();
-    if (ns === s) return k;
+  // exact
+  for (const k of Object.keys(allMaster)) {
+    if (String(allMaster[k].namaSalesId || '').trim().toUpperCase() === s) return k;
   }
-  for (const k of Object.keys(allPromotor)) {
-    const p = allPromotor[k];
-    const ns = String(p.namaSales || '').trim().toUpperCase();
-    const na = String(p.namaAbsen || '').trim().toUpperCase();
+  // fuzzy
+  for (const k of Object.keys(allMaster)) {
+    const p = allMaster[k];
+    const ns = String(p.namaSalesId || '').trim().toUpperCase();
     if (ns && (s.includes(ns) || ns.includes(s))) return k;
-    if (na && (s.includes(na) || na.includes(s))) return k;
+  }
+  return null;
+}
+
+function cariPromotorKeyByFinger(namaFinger) {
+  const s = String(namaFinger || '').trim().toUpperCase();
+  if (!s) return null;
+  // exact namaFinger
+  for (const k of Object.keys(allMaster)) {
+    if (String(allMaster[k].namaFinger || '').trim().toUpperCase() === s) return k;
+  }
+  // fuzzy namaFinger
+  for (const k of Object.keys(allMaster)) {
+    const p = allMaster[k];
+    const nf = String(p.namaFinger || '').trim().toUpperCase();
+    if (nf && (s.includes(nf) || nf.includes(s))) return k;
   }
   return null;
 }
@@ -468,9 +469,7 @@ function cariPromotorKey(namaSales) {
 /* ===== FIREBASE READY ===== */
 window.addEventListener('firebase-ready', async () => {
   document.getElementById('badgeBulan').classList.remove('hidden');
-  document.getElementById('badgeBulan').innerHTML = '<svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:currentColor;stroke-width:2.5;fill:none;display:inline-block;vertical-align:middle;margin-right:6px;"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> ' + getNamaBulanIndo(BULAN_INI);
-  
-  // Jika sudah login sebagai admin (dari fungsi onAuthStateChanged di head)
+  document.getElementById('badgeBulan').innerHTML = '📅 ' + getNamaBulanIndo(BULAN_INI);
   if (window.adminUser) {
     document.getElementById('loginBox').classList.add('hidden');
     document.getElementById('panelAdmin').classList.remove('hidden');
@@ -488,25 +487,19 @@ window.addEventListener('firebase-ready', async () => {
 async function loginAdminGoogle() {
   const errEl = document.getElementById('loginError');
   errEl.classList.add('hidden');
-  
   try {
     const provider = new window.firebaseGoogleAuthProvider();
     provider.setCustomParameters({ prompt: 'select_account' });
     const result = await window.firebaseSignInWithPopup(window.firebaseAuth, provider);
     const user = result.user;
-
-    // Verifikasi whitelist
     const emailKey = user.email.replace(/\./g, ',');
     const snap = await window.dbGet(window.dbRef(window.db, 'users/whitelist/' + emailKey));
-    
     if (snap.exists() && snap.val().role === 'ADMIN') {
-      // SUKSES LOGIN ADMIN
       document.getElementById('loginBox').classList.add('hidden');
       document.getElementById('panelAdmin').classList.remove('hidden');
       document.getElementById('headerUser').classList.remove('hidden');
       document.getElementById('btnLogoutHeader').classList.remove('hidden');
       document.getElementById('headerUser').innerHTML = `👑 ${snap.val().nama || user.email}`;
-      
       mulaiAdmin();
       setTimeout(cekDanTawarkanResetBulan, 1500);
     } else {
@@ -521,36 +514,20 @@ async function loginAdminGoogle() {
 }
 
 function logoutAdmin() {
-  tampilkanKonfirmasi('Keluar?', 'Yakin ingin keluar dari panel admin?', async () => {
-    try {
-      await window.firebaseSignOut(window.firebaseAuth);
-    } catch(e) {}
+  tampilkanKonfirmasi('Keluar?', 'Yakin ingin keluar?', async () => {
+    try { await window.firebaseSignOut(window.firebaseAuth); } catch(e){}
     location.reload();
   }, 'warning');
 }
-/* ===== LOAD DATA ===== */
+
 function mulaiAdmin() {
-  window.dbOnValue(window.dbRef(window.db, 'users/promotor'), snap => {
-    allPromotor = snap.exists() ? snap.val() : {};
+  window.dbOnValue(window.dbRef(window.db, 'users/master_promotor'), snap => {
+    allMaster = snap.exists() ? snap.val() : {};
     if (currentTab !== 'upload') renderTab();
   });
   window.dbOnValue(window.dbRef(window.db, 'penjualan/' + BULAN_INI + '/all'), snap => {
-    if (snap.exists()) {
-      allPenjualan = snap.val();
-      if (currentTab === 'dash') renderTab();
-    } else {
-      window.dbGet(window.dbRef(window.db, 'penjualan/' + BULAN_INI)).then(s => {
-        if (!s.exists()) { allPenjualan = {}; return; }
-        const raw = s.val();
-        const filtered = {};
-        Object.keys(raw).forEach(k => {
-          if (k === 'all' || k === 'per_promotor') return;
-          filtered[k] = raw[k];
-        });
-        allPenjualan = filtered;
-        if (currentTab === 'dash') renderTab();
-      });
-    }
+    allPenjualan = snap.exists() ? snap.val() : {};
+    if (currentTab === 'dash') renderTab();
   });
   window.dbOnValue(window.dbRef(window.db, 'absensi/' + BULAN_INI), snap => {
     allAbsensi = snap.exists() ? snap.val() : {};
@@ -563,10 +540,6 @@ function mulaiAdmin() {
   window.dbOnValue(window.dbRef(window.db, 'info/rules'), snap => {
     allRules = snap.exists() ? snap.val() : [];
     if (currentTab === 'promo') renderTab();
-  });
-  window.dbOnValue(window.dbRef(window.db, 'users/whitelist'), snap => {
-    allWhitelist = snap.exists() ? snap.val() : {};
-    if (currentTab === 'whitelist') renderTab();
   });
   renderTab();
 }
@@ -582,71 +555,45 @@ function renderTab() {
   const el = document.getElementById('tabContent');
   if (currentTab === 'dash') el.innerHTML = renderDash();
   else if (currentTab === 'upload') el.innerHTML = renderUpload();
-  else if (currentTab === 'promotor') el.innerHTML = renderPromotor();
-  else if (currentTab === 'whitelist') el.innerHTML = renderWhitelist();
+  else if (currentTab === 'master') el.innerHTML = renderMasterPromotor();
   else if (currentTab === 'terlambat') el.innerHTML = renderTerlambat();
   else if (currentTab === 'promo') el.innerHTML = renderPromoSOP();
   else if (currentTab === 'danger') el.innerHTML = renderDanger();
 }
 
-/* ===== HELPER ===== */
+/* ===== CONVERTERS ===== */
 function convertTanggalExcel(val) {
   if (val === undefined || val === null || val === '') return '';
   if (typeof val === 'number' && val > 1 && val < 100000) {
     const epochMs = Date.UTC(1899, 11, 30);
     const ms = epochMs + val * 24 * 60 * 60 * 1000;
     const d = new Date(ms);
-    return String(d.getUTCDate()).padStart(2, '0') + '/' + String(d.getUTCMonth() + 1).padStart(2, '0') + '/' + d.getUTCFullYear();
+    return String(d.getUTCDate()).padStart(2,'0') + '/' + String(d.getUTCMonth()+1).padStart(2,'0') + '/' + d.getUTCFullYear();
   }
   const str = String(val).trim();
-  if (!str) return '';
-  if (/^\d{5}$/.test(str)) {
-    const num = parseInt(str);
-    const epochMs = Date.UTC(1899, 11, 30);
-    const ms = epochMs + num * 24 * 60 * 60 * 1000;
-    const d = new Date(ms);
-    return String(d.getUTCDate()).padStart(2, '0') + '/' + String(d.getUTCMonth() + 1).padStart(2, '0') + '/' + d.getUTCFullYear();
-  }
-  if (/^\d{4}-\d{2}-\d{2}/.test(str)) {
-    const p = str.split(' ')[0].split('-');
-    return `${p[2]}/${p[1]}/${p[0]}`;
-  }
-  if (/^\d{1,2}\/\d{1,2}\/\d{4}/.test(str)) {
-    const parts = str.split(' ')[0].split('/');
-    return `${String(parts[1]).padStart(2, '0')}/${String(parts[0]).padStart(2, '0')}/${parts[2]}`;
-  }
+  if (/^\d{4}-\d{2}-\d{2}/.test(str)) { const p = str.split(' ')[0].split('-'); return `${p[2]}/${p[1]}/${p[0]}`; }
   return str;
 }
-
 function convertJam(val) {
   if (val === undefined || val === null || val === '') return '';
   if (typeof val === 'number') {
     if (val === 0 || isNaN(val)) return '';
     const totalMenit = Math.round(val * 24 * 60);
-    return String(Math.floor(totalMenit / 60) % 24).padStart(2, '0') + ':' + String(totalMenit % 60).padStart(2, '0');
+    return String(Math.floor(totalMenit/60)%24).padStart(2,'0') + ':' + String(totalMenit%60).padStart(2,'0');
   }
-  const str = String(val).trim();
-  if (!str) return '';
-  if (/^\d*\.?\d+$/.test(str)) {
-    const num = parseFloat(str);
-    if (isNaN(num) || num === 0) return '';
-    if (num < 1) {
-      const totalMenit = Math.round(num * 24 * 60);
-      return String(Math.floor(totalMenit / 60) % 24).padStart(2, '0') + ':' + String(totalMenit % 60).padStart(2, '0');
-    }
-    const jam = Math.floor(num);
-    return String(jam).padStart(2, '0') + ':' + String(Math.round((num - jam) * 60)).padStart(2, '0');
-  }
-  return str;
+  return String(val).trim();
 }
-
-function sanitizeKey(nama) {
-  return String(nama || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_');
+function parseAngka(val) {
+  if (val === '' || val === null || val === undefined) return 0;
+  if (typeof val === 'number') return val;
+  const s = String(val).replace(/[^\d.-]/g, '');
+  const n = Number(s);
+  return isNaN(n) ? 0 : n;
 }
 
 /* ===== DASHBOARD ===== */
 function renderDash() {
-  const jmlPromotor = Object.keys(allPromotor).length;
+  const jmlPromotor = Object.values(allMaster).filter(p => p.tampilWeb === 'YA' && p.aktif === 'YA').length;
   const trans = Object.values(allPenjualan);
   const totalOmzet = trans.reduce((s, x) => s + (Number(x.subtotal) || 0), 0);
   return `
@@ -655,9 +602,9 @@ function renderDash() {
       <p>Data ditampilkan: <b>${getNamaBulanIndo(BULAN_INI)}</b></p>
     </div>
     <div class="card">
-      <h3><svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg> Statistik Bulan Ini</h3>
+      <h3>📊 Statistik Bulan Ini</h3>
       <div class="stats-grid">
-        <div class="stat-card"><div class="label">Promotor</div><div class="value">${jmlPromotor}</div></div>
+        <div class="stat-card"><div class="label">Promotor Tampil</div><div class="value">${jmlPromotor}</div></div>
         <div class="stat-card"><div class="label">Transaksi</div><div class="value">${trans.length}</div></div>
         <div class="stat-card"><div class="label">Absensi</div><div class="value">${Object.keys(allAbsensi).length}</div></div>
         <div class="stat-card full success"><div class="label">Total Omzet</div><div class="value" style="font-size:28px;">Rp ${totalOmzet.toLocaleString('id-ID')}</div></div>
@@ -669,10 +616,10 @@ function renderDash() {
 /* ===== UPLOAD ===== */
 function renderUpload() {
   return `
-    <div class="alert warn">📅 Semua upload akan masuk ke folder bulan: <b>${BULAN_INI}</b> (${getNamaBulanIndo(BULAN_INI)})</div>
+    <div class="alert warn">📅 Upload masuk ke folder bulan: <b>${BULAN_INI}</b> (${getNamaBulanIndo(BULAN_INI)})</div>
     <div class="card">
-      <h3><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> 1. Upload File Finger</h3>
-      <p>Upload file absen dari mesin finger (sheet <b>Punch</b>).</p>
+      <h3>1. Upload File Finger</h3>
+      <p>Upload file absen dari mesin finger (sheet <b>Punch</b> / <b>RAW</b>).</p>
       <div class="file-wrap" onclick="document.getElementById('fileFinger').click()">
         <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
         <p><strong>Klik pilih file Finger</strong></p>
@@ -681,8 +628,8 @@ function renderUpload() {
       <div id="fingerInfo" style="margin-top:16px;"></div>
     </div>
     <div class="card">
-      <h3><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4z"/><path d="M4 9h16"/><path d="M9 4v16"/></svg> 2. Upload Data Master</h3>
-      <p>Upload file <b>ABSEN FINGER.xlsx</b> lengkap.</p>
+      <h3>2. Upload Data Master</h3>
+      <p>Upload file <b>ABSEN FINGER.xlsx</b> lengkap (MASTER_SALES, MAPPING_NAMA, PENJUALAN, ABSENFINGER, PROMO, RULES).</p>
       <div class="file-wrap" onclick="document.getElementById('fileMaster').click()">
         <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
         <p><strong>Klik pilih file Master</strong></p>
@@ -691,7 +638,7 @@ function renderUpload() {
       <div id="masterInfo" style="margin-top:16px;"></div>
     </div>
     <div class="card">
-      <h3><svg viewBox="0 0 24 24"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg> 3. Upload Penjualan Harian</h3>
+      <h3>3. Upload Penjualan Harian</h3>
       <p>Upload file <b>Penjualan Detail.xlsx</b> dari kasir.</p>
       <div class="file-wrap" onclick="document.getElementById('filePenjualan').click()">
         <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
@@ -718,27 +665,18 @@ function handleFileFinger(e) {
       if (!sheet) { el.innerHTML = '<div class="alert err">❌ Sheet tidak ditemukan!</div>'; return; }
       const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
       const absensiData = {};
-      let promotorCount = 0, hariCount = 0, skipList = [];
+      let promotorCount = 0, hariCount = 0;
+      const skipList = [];
       const bulanIni = getNamaBulanIndo(BULAN_INI);
-      
       for (let i = 0; i < rows.length; i++) {
         const row = rows[i];
         if (!row || !row[0]) continue;
         const m = String(row[0]).match(/Nama:(\S+)/);
         if (!m) continue;
-        let namaFinger = m[1].trim();
-        const cleanKey = sanitizeKey(namaFinger);
-        let foundKey = null, foundPromotor = null;
-        if (allPromotor[cleanKey]) { foundKey = cleanKey; foundPromotor = allPromotor[cleanKey]; }
-        else {
-          for (const k of Object.keys(allPromotor)) {
-            const p = allPromotor[k];
-            if (p.namaAbsen && String(p.namaAbsen).toUpperCase().includes(namaFinger.toUpperCase())) {
-              foundKey = k; foundPromotor = p; break;
-            }
-          }
-        }
+        const namaFinger = m[1].trim();
+        const foundKey = cariPromotorKeyByFinger(namaFinger);
         if (!foundKey) { if (skipList.indexOf(namaFinger) === -1) skipList.push(namaFinger); continue; }
+        const foundPromotor = allMaster[foundKey];
         const dateRow = rows[i + 1], jamRow = rows[i + 2];
         if (!dateRow || !jamRow) continue;
         if (!absensiData[foundKey]) absensiData[foundKey] = {};
@@ -766,12 +704,12 @@ function handleFileFinger(e) {
         }
       }
       if (promotorCount === 0) {
-        el.innerHTML = `<div class="alert err">❌ Tidak ada promotor cocok!<br>Nama di file: ${skipList.slice(0,5).join(', ')}</div>`;
+        el.innerHTML = `<div class="alert err">❌ Tidak ada promotor cocok!<br>Nama di file: ${skipList.slice(0,10).join(', ')}</div>`;
         return;
       }
       el.innerHTML = `
-        <div class="alert ok">✅ ${promotorCount} promotor • ${hariCount} hari
-        ${skipList.length > 0 ? `<br><small>⚠️ ${skipList.length} tidak cocok</small>` : ''}</div>
+        <div class="alert ok">✅ ${promotorCount} promotor • ${hariCount} hari</div>
+        ${skipList.length > 0 ? `<div class="alert warn">⚠️ ${skipList.length} nama finger TIDAK cocok:<br><b>${skipList.join(', ')}</b><br><small>Tambahkan di menu Master Promotor (field Nama Finger).</small></div>` : ''}
         <button class="btn-success btn-full" onclick="konfirmasiUploadFinger()">Konfirmasi Upload</button>
       `;
       window._fingerData = absensiData;
@@ -800,9 +738,7 @@ async function konfirmasiUploadFinger() {
       });
     });
     await window.dbUpdate(window.dbRef(window.db), updates);
-    el.innerHTML = `<div class="alert ok">✅ Berhasil! ${totalHari} hari
-      ${totalUpdate > 0 ? `<br><small>🔒 ${totalUpdate} flag terlambat dipertahankan</small>` : ''}</div>
-      <button class="btn-soft btn-full" onclick="location.reload()">Refresh</button>`;
+    el.innerHTML = `<div class="alert ok">✅ Berhasil! ${totalHari} hari</div><button class="btn-soft btn-full" onclick="location.reload()">Refresh</button>`;
     window._fingerData = null;
   } catch (err) { el.innerHTML = `<div class="alert err">❌ ${err.message}</div>`; }
 }
@@ -817,7 +753,9 @@ function handleFileMaster(e) {
     try {
       const data = new Uint8Array(evt.target.result);
       const wb = XLSX.read(data, { type: 'array' });
-      const result = { promotor: [], penjualan: [], absensi: {}, info: {} };
+      const result = { master: {}, penjualan: [], absensi: {}, info: {} };
+
+      // ===== MASTER_SALES =====
       const ms = wb.Sheets['MASTER_SALES'];
       if (ms) {
         const rows = XLSX.utils.sheet_to_json(ms, { header: 1, defval: '' });
@@ -826,49 +764,97 @@ function handleFileMaster(e) {
           if (!r[0]) continue;
           if (String(r[2]).trim().toUpperCase() !== 'YA') continue;
           if (String(r[5] || '').trim().toUpperCase() !== 'YA') continue;
-          if (String(r[4] || 'USER').trim().toUpperCase() !== 'USER') continue;
-          result.promotor.push({
-            namaAbsen: String(r[0]).trim(), namaSales: String(r[1]).trim(),
-            pin: String(r[3]).trim().replace(/\.0$/, ''),
-            ikutUC: String(r[6] || 'YA').trim().toUpperCase(),
-            targetUC: Number(r[7]) || 16, merk: String(r[8] || '').trim(), aktif: true
-          });
+          if (String(r[4] || '').trim().toUpperCase() !== 'USER') continue;
+          const rawTarget = r[7];
+          const targetUC = (rawTarget !== '' && rawTarget !== null && rawTarget !== undefined) ? Number(rawTarget) : 16;
+          const ikutUC = String(r[6] || (targetUC === 0 ? 'TIDAK' : 'YA')).trim().toUpperCase();
+          const namaAbsen = String(r[0]).trim();
+          const key = sanitizeKey(namaAbsen);
+          result.master[key] = {
+            namaFinger: String(r[0]).trim(),  // default: nama absen sebagai finger, admin bisa edit nanti
+            namaSalesId: String(r[1]).trim(),
+            namaAbsen: namaAbsen,
+            email: '',
+            role: 'PROMOTOR',
+            tampilWeb: 'YA',
+            aktif: 'YA',
+            merk: String(r[8] || '').trim(),
+            targetUC: targetUC,
+            ikutUC: ikutUC
+          };
         }
       }
+
+      // ===== MAPPING_NAMA (override namaFinger) =====
+      const mapSheet = wb.Sheets['MAPPING_NAMA'];
+      if (mapSheet) {
+        const rows = XLSX.utils.sheet_to_json(mapSheet, { header: 1, defval: '' });
+        for (let i = 1; i < rows.length; i++) {
+          const finger = String(rows[i][0] || '').trim();
+          const absen = String(rows[i][1] || '').trim();
+          if (!finger || !absen) continue;
+          const key = sanitizeKey(absen);
+          if (result.master[key]) {
+            result.master[key].namaFinger = finger;
+          }
+        }
+      }
+
+      // ===== PENJUALAN =====
       const pj = wb.Sheets['PENJUALAN'];
       if (pj) {
         const rows = XLSX.utils.sheet_to_json(pj, { header: 1, defval: '' });
-        for (let i = 1; i < rows.length; i++) {
-          const r = rows[i];
-          if (!r[0] || !r[1]) continue;
-          if (String(r[5]).trim().toUpperCase() === 'TOTAL') continue;
-          result.penjualan.push({
-            noFaktur: String(r[1]).trim(), tanggal: convertTanggalExcel(r[2]),
-            barcode: String(r[3]).trim(), namaBarang: String(r[5]).trim(),
-            qty: Number(r[6]) || 0, subtotal: Number(r[10]) || 0,
-            namaSales: String(r[15]).trim(),
-            kategori: String(r[17]).trim().toUpperCase(),
-            merk: String(r[18]).trim().toUpperCase()
-          });
+        let hIdx = -1;
+        for (let i = 0; i < rows.length; i++) {
+          const a = String(rows[i][0] || '').trim().toLowerCase();
+          const b = String(rows[i][1] || '').trim().toLowerCase();
+          if (a === 'store' && b.includes('faktur')) { hIdx = i; break; }
+        }
+        if (hIdx !== -1) {
+          const header = rows[hIdx].map(h => String(h || '').trim().toLowerCase());
+          const cariIdx = (nama) => header.findIndex(h => h.includes(nama));
+          const idx = {
+            noFaktur: cariIdx('nomor faktur'), tanggal: cariIdx('tanggal faktur'),
+            barcode: cariIdx('barcode'), namaBarang: cariIdx('nama barang'),
+            qty: cariIdx('qty'), subtotal: cariIdx('subtotal'),
+            namaSales: cariIdx('nama sales'), kategori: cariIdx('kategori'), merk: cariIdx('merk')
+          };
+          for (let i = hIdx + 1; i < rows.length; i++) {
+            const r = rows[i];
+            if (!r || !r[idx.noFaktur] || !r[idx.tanggal]) continue;
+            const nb = String(r[idx.namaBarang] || '').trim().toUpperCase();
+            if (['TOTAL','GRAND TOTAL','SUB TOTAL','JUMLAH','REKAP'].includes(nb)) continue;
+            result.penjualan.push({
+              noFaktur: String(r[idx.noFaktur]).trim(),
+              tanggal: convertTanggalExcel(r[idx.tanggal]),
+              barcode: String(r[idx.barcode] || '').trim(),
+              namaBarang: String(r[idx.namaBarang] || '').trim(),
+              qty: parseAngka(r[idx.qty]),
+              subtotal: parseAngka(r[idx.subtotal]),
+              namaSales: String(r[idx.namaSales] || '').trim(),
+              kategori: String(r[idx.kategori] || '').trim().toUpperCase(),
+              merk: String(r[idx.merk] || '').trim().toUpperCase()
+            });
+          }
         }
       }
+
+      // ===== ABSENFINGER =====
       const ab = wb.Sheets['ABSENFINGER'];
       if (ab) {
         const rows = XLSX.utils.sheet_to_json(ab, { header: 1, defval: '' });
         for (let i = 1; i < rows.length; i++) {
           const r = rows[i];
-          if (!r || !r[0] || String(r[0]).trim() === '') continue;
+          if (!r || !r[0]) continue;
           const namaAbsen = String(r[0]).trim();
           let hariNum = 0;
           const tglRaw = r[1];
-          if (tglRaw !== undefined && tglRaw !== null && tglRaw !== '') {
-            hariNum = typeof tglRaw === 'number' ? Math.floor(tglRaw) : parseInt(String(tglRaw).trim(), 10) || 0;
-          }
+          if (tglRaw !== undefined && tglRaw !== null && tglRaw !== '') hariNum = typeof tglRaw === 'number' ? Math.floor(tglRaw) : parseInt(String(tglRaw).trim(), 10) || 0;
           if (hariNum < 1 || hariNum > 31) continue;
-          const cleanKey = sanitizeKey(namaAbsen);
-          if (!result.absensi[cleanKey]) result.absensi[cleanKey] = {};
-          if (result.absensi[cleanKey]['hari_' + hariNum]) continue;
-          result.absensi[cleanKey]['hari_' + hariNum] = {
+          const key = sanitizeKey(namaAbsen);
+          if (!result.absensi[key]) result.absensi[key] = {};
+          if (result.absensi[key]['hari_' + hariNum]) continue;
+          result.absensi[key]['hari_' + hariNum] = {
             nama: namaAbsen, hari: hariNum,
             masuk: convertJam(r[2]), istirahat1: convertJam(r[3]),
             kembali1: convertJam(r[4]), istirahat2: convertJam(r[5]),
@@ -878,6 +864,7 @@ function handleFileMaster(e) {
           };
         }
       }
+
       const parseSheet = (sheet, cols) => {
         if (!sheet) return [];
         const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
@@ -891,11 +878,12 @@ function handleFileMaster(e) {
         }
         return out;
       };
-      result.info.promo = parseSheet(wb.Sheets['PROMO'], ['judul', 'periode', 'detail']);
-      result.info.rules = parseSheet(wb.Sheets['RULES'], ['poin', 'deskripsi']);
+      result.info.promo = parseSheet(wb.Sheets['PROMO'], ['judul','periode','detail']);
+      result.info.rules = parseSheet(wb.Sheets['RULES'], ['poin','deskripsi']);
+
       const totalAbsensi = Object.values(result.absensi).reduce((s, o) => s + Object.keys(o).length, 0);
       el.innerHTML = `
-        <div class="alert ok">✅ Siap upload:<br>• ${result.promotor.length} promotor<br>• ${result.penjualan.length} transaksi<br>• ${Object.keys(result.absensi).length} promotor absensi (${totalAbsensi} hari)</div>
+        <div class="alert ok">✅ Siap upload:<br>• ${Object.keys(result.master).length} promotor<br>• ${result.penjualan.length} transaksi<br>• ${Object.keys(result.absensi).length} promotor absensi (${totalAbsensi} hari)</div>
         <button class="btn-success btn-full" onclick="konfirmasiUploadMaster()">Konfirmasi Upload</button>
       `;
       window._masterData = result;
@@ -911,48 +899,49 @@ async function konfirmasiUploadMaster() {
   el.innerHTML = '<div class="alert warn"><span class="spinner spinner-dark"></span> Uploading...</div>';
   try {
     const updates = {};
-    data.promotor.forEach(p => { updates['users/promotor/' + sanitizeKey(p.namaAbsen)] = p; });
+    // Master promotor
+    Object.keys(data.master).forEach(k => { updates['users/master_promotor/' + k] = data.master[k]; });
+    // Whitelist (dari master yang punya email)
+    Object.keys(data.master).forEach(k => {
+      const p = data.master[k];
+      if (p.email && p.email.includes('@')) {
+        const emailKey = p.email.toLowerCase().replace(/\./g, ',');
+        updates['users/whitelist/' + emailKey] = { email: p.email.toLowerCase(), nama: p.namaAbsen, role: p.role, promotorKey: k };
+      }
+    });
+    // Mapping nama
+    Object.keys(data.master).forEach(k => {
+      const p = data.master[k];
+      if (p.namaFinger && p.namaAbsen) {
+        updates['users/mapping_nama/' + p.namaFinger.toUpperCase()] = p.namaAbsen;
+      }
+    });
 
+    // Dedup penjualan
     const snapAll = await window.dbGet(window.dbRef(window.db, 'penjualan/' + BULAN_INI + '/all'));
     const setExist = new Set();
-    if (snapAll.exists()) {
-      Object.values(snapAll.val()).forEach(x => { if (x && x.noFaktur && x.barcode) setExist.add(x.noFaktur + '|' + x.barcode); });
-    }
+    if (snapAll.exists()) Object.values(snapAll.val()).forEach(x => { if (x && x.noFaktur && x.barcode) setExist.add(x.noFaktur + '|' + x.barcode); });
 
-    const snapRoot = await window.dbGet(window.dbRef(window.db, 'penjualan/' + BULAN_INI));
-    if (snapRoot.exists()) {
-      const rootVal = snapRoot.val();
-      Object.keys(rootVal).forEach(k => {
-        if (k === 'all' || k === 'per_promotor') return;
-        const item = rootVal[k];
-        if (item && typeof item === 'object' && item.namaSales) {
-          updates[`penjualan/${BULAN_INI}/all/${k}`] = item;
-          setExist.add((item.noFaktur || '') + '|' + (item.barcode || ''));
-        }
-      });
-    }
-
-    let cBaru = 0, cSkip = 0, cTanpaPromotor = 0;
+    let cBaru = 0, cSkip = 0;
+    const salesTidakDikenal = new Set();
     data.penjualan.forEach((item, idx) => {
       const k = item.noFaktur + '|' + item.barcode;
       if (setExist.has(k)) { cSkip++; return; }
       const txId = `t_${Date.now()}_${idx}_${Math.random().toString(36).substr(2,6)}`;
       updates[`penjualan/${BULAN_INI}/all/${txId}`] = item;
-      const pk = cariPromotorKey(item.namaSales);
-      if (pk) {
-        updates[`penjualan/${BULAN_INI}/per_promotor/${pk}/${txId}`] = item;
-      } else {
-        cTanpaPromotor++;
-      }
+      const pk = cariPromotorKeyBySalesId(item.namaSales);
+      if (pk) updates[`penjualan/${BULAN_INI}/per_promotor/${pk}/${txId}`] = item;
+      else salesTidakDikenal.add(item.namaSales);
       cBaru++;
     });
 
     Object.keys(data.absensi).forEach(k => { updates[`absensi/${BULAN_INI}/${k}`] = data.absensi[k]; });
     if (data.info.promo.length) updates['info/promo'] = data.info.promo;
     if (data.info.rules.length) updates['info/rules'] = data.info.rules;
+
     await window.dbUpdate(window.dbRef(window.db), updates);
-    const totalAbsensi = Object.values(data.absensi).reduce((s, o) => s + Object.keys(o).length, 0);
-    el.innerHTML = `<div class="alert ok">✅ Berhasil!<br>• ${data.promotor.length} promotor<br>• ${cBaru} transaksi baru (${cSkip} duplikat)${cTanpaPromotor > 0 ? `<br><span style="color:#d97706;">⚠️ ${cTanpaPromotor} transaksi tanpa promotor dikenali</span>` : ''}<br>• ${totalAbsensi} hari absensi</div>
+    el.innerHTML = `<div class="alert ok">✅ Berhasil!<br>• ${Object.keys(data.master).length} promotor<br>• ${cBaru} transaksi baru (${cSkip} duplikat)</div>
+      ${salesTidakDikenal.size > 0 ? `<div class="alert warn">⚠️ Nama sales tidak dikenali: <b>${[...salesTidakDikenal].join(', ')}</b><br><small>Tambahkan di Master Promotor (field Nama Sales ID).</small></div>` : ''}
       <button class="btn-soft btn-full" onclick="location.reload()">Refresh</button>`;
     window._masterData = null;
   } catch (err) { el.innerHTML = `<div class="alert err">❌ ${err.message}</div>`; }
@@ -972,21 +961,35 @@ function handleFilePenjualan(e) {
       const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
       let hIdx = -1;
       for (let i = 0; i < rows.length; i++) {
-        if (rows[i][0] === 'Store' && rows[i][1] === 'Nomor Faktur') { hIdx = i; break; }
+        const a = String(rows[i][0] || '').trim().toLowerCase();
+        const b = String(rows[i][1] || '').trim().toLowerCase();
+        if (a === 'store' && b.includes('faktur')) { hIdx = i; break; }
       }
       if (hIdx === -1) { el.innerHTML = '<div class="alert err">❌ Format tidak dikenali</div>'; return; }
+      const header = rows[hIdx].map(h => String(h || '').trim().toLowerCase());
+      const cariIdx = (nama) => header.findIndex(h => h.includes(nama));
+      const idx = {
+        noFaktur: cariIdx('nomor faktur'), tanggal: cariIdx('tanggal faktur'),
+        barcode: cariIdx('barcode'), namaBarang: cariIdx('nama barang'),
+        qty: cariIdx('qty'), subtotal: cariIdx('subtotal'),
+        namaSales: cariIdx('nama sales'), kategori: cariIdx('kategori'), merk: cariIdx('merk')
+      };
       const parsed = [];
       for (let i = hIdx + 1; i < rows.length; i++) {
         const r = rows[i];
-        if (!r || !r[1] || !r[2]) continue;
-        if (String(r[5]).trim().toUpperCase() === 'TOTAL') continue;
+        if (!r || !r[idx.noFaktur] || !r[idx.tanggal]) continue;
+        const nb = String(r[idx.namaBarang] || '').trim().toUpperCase();
+        if (['TOTAL','GRAND TOTAL','SUB TOTAL','JUMLAH','REKAP'].includes(nb)) continue;
         parsed.push({
-          noFaktur: String(r[1]).trim(), tanggal: convertTanggalExcel(r[2]),
-          barcode: String(r[3]).trim(), namaBarang: String(r[5]).trim(),
-          qty: Number(r[6]) || 0, subtotal: Number(r[10]) || 0,
-          namaSales: String(r[15]).trim(),
-          kategori: String(r[17]).trim().toUpperCase(),
-          merk: String(r[18]).trim().toUpperCase()
+          noFaktur: String(r[idx.noFaktur]).trim(),
+          tanggal: convertTanggalExcel(r[idx.tanggal]),
+          barcode: String(r[idx.barcode] || '').trim(),
+          namaBarang: String(r[idx.namaBarang] || '').trim(),
+          qty: parseAngka(r[idx.qty]),
+          subtotal: parseAngka(r[idx.subtotal]),
+          namaSales: String(r[idx.namaSales] || '').trim(),
+          kategori: String(r[idx.kategori] || '').trim().toUpperCase(),
+          merk: String(r[idx.merk] || '').trim().toUpperCase()
         });
       }
       const omzet = parsed.reduce((s, x) => s + x.subtotal, 0);
@@ -1006,249 +1009,295 @@ async function konfirmasiUploadPenjualan() {
   try {
     const snapAll = await window.dbGet(window.dbRef(window.db, 'penjualan/' + BULAN_INI + '/all'));
     const setExist = new Set();
-    if (snapAll.exists()) {
-      Object.values(snapAll.val()).forEach(x => { if (x && x.noFaktur && x.barcode) setExist.add(x.noFaktur + '|' + x.barcode); });
-    }
-
-    const snapRoot = await window.dbGet(window.dbRef(window.db, 'penjualan/' + BULAN_INI));
+    if (snapAll.exists()) Object.values(snapAll.val()).forEach(x => { if (x && x.noFaktur && x.barcode) setExist.add(x.noFaktur + '|' + x.barcode); });
     const updates = {};
-    if (snapRoot.exists()) {
-      const rootVal = snapRoot.val();
-      Object.keys(rootVal).forEach(k => {
-        if (k === 'all' || k === 'per_promotor') return;
-        const item = rootVal[k];
-        if (item && typeof item === 'object' && item.namaSales) {
-          updates[`penjualan/${BULAN_INI}/all/${k}`] = item;
-          setExist.add((item.noFaktur || '') + '|' + (item.barcode || ''));
-        }
-      });
-    }
-
-    let cBaru = 0, cSkip = 0, cTanpaPromotor = 0;
+    let cBaru = 0, cSkip = 0;
+    const salesTidakDikenal = new Set();
     data.forEach((item, idx) => {
       const k = item.noFaktur + '|' + item.barcode;
       if (setExist.has(k)) { cSkip++; return; }
       const txId = `t_${Date.now()}_${idx}_${Math.random().toString(36).substr(2,6)}`;
       updates[`penjualan/${BULAN_INI}/all/${txId}`] = item;
-      const pk = cariPromotorKey(item.namaSales);
-      if (pk) {
-        updates[`penjualan/${BULAN_INI}/per_promotor/${pk}/${txId}`] = item;
-      } else {
-        cTanpaPromotor++;
-      }
+      const pk = cariPromotorKeyBySalesId(item.namaSales);
+      if (pk) updates[`penjualan/${BULAN_INI}/per_promotor/${pk}/${txId}`] = item;
+      else salesTidakDikenal.add(item.namaSales);
       cBaru++;
     });
     await window.dbUpdate(window.dbRef(window.db), updates);
-    el.innerHTML = `<div class="alert ok">✅ ${cBaru} transaksi baru (${cSkip} duplikat)${cTanpaPromotor > 0 ? `<br><span style="color:#d97706;">⚠️ ${cTanpaPromotor} tanpa promotor</span>` : ''}</div>`;
+    el.innerHTML = `<div class="alert ok">✅ ${cBaru} transaksi baru (${cSkip} duplikat)</div>
+      ${salesTidakDikenal.size > 0 ? `<div class="alert warn">⚠️ Nama sales tidak dikenali: <b>${[...salesTidakDikenal].join(', ')}</b></div>` : ''}`;
     window._jualData = null;
   } catch (err) { el.innerHTML = `<div class="alert err">❌ ${err.message}</div>`; }
 }
 
-/* ===== PROMOTOR ===== */
-function renderPromotor() {
-  const list = Object.keys(allPromotor).map(k => ({ key: k, ...allPromotor[k] })).sort((a,b) => (a.namaAbsen || '').localeCompare(b.namaAbsen || ''));
+/* ===== MASTER PROMOTOR ===== */
+function renderMasterPromotor() {
+  const list = Object.keys(allMaster).map(k => ({ key: k, ...allMaster[k] }))
+    .filter(p => p.tampilWeb === 'YA' && p.aktif === 'YA')
+    .sort((a,b) => (a.namaAbsen || '').localeCompare(b.namaAbsen || ''));
+  const totalAll = Object.keys(allMaster).length;
   return `
+    <div class="alert warn">💡 Admin cukup isi <b>Nama Finger</b>, <b>Nama Sales ID</b>, dan <b>Nama Tampil Web</b>. Sistem otomatis menghubungkan absensi & penjualan. Tidak perlu buka Firebase.</div>
     <div class="card">
-      <h3><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Tambah Promotor Baru</h3>
-      <p>Daftarkan promotor baru secara manual. (Pastikan nama sesuai dengan Sales ID & Finger).</p>
-      
-      <div class="form-grid">
-        <div>
-          <label>Nama Absen (Finger)</label>
-          <input type="text" id="p_namaAbsen" placeholder="Contoh: RONI">
-        </div>
-        <div>
-          <label>Nama Sales ID</label>
-          <input type="text" id="p_namaSales" placeholder="Contoh: ronimlg ">
-        </div>
-        <div>
-          <label>Merk / Brand</label>
-          <input type="text" id="p_merk" placeholder="Contoh: COMFORTA">
-        </div>
-        <div>
-          <label>Target UC</label>
-          <input type="number" id="p_targetUC" placeholder="16" value="16">
-        </div>
-        <div style="grid-column: 1 / -1;">
-          <label>Ikut Target UC?</label>
-          <select id="p_ikutUC">
-            <option value="YA">YA (Akan kena denda jika tidak tercapai)</option>
-            <option value="TIDAK">TIDAK (Kebal denda UC)</option>
-          </select>
-        </div>
-      </div>
-      
-      <button class="btn-primary btn-full" onclick="tambahPromotor()">Simpan Promotor Baru</button>
-      <div id="promotorMsg" style="margin-top:12px;"></div>
+      <h3>➕ Tambah Promotor</h3>
+      <p>Klik tombol di bawah untuk menambah promotor baru.</p>
+      <button class="btn-primary btn-full" onclick="bukaFormMaster()">+ Tambah Promotor Baru</button>
+      <button class="btn-warning btn-full" style="margin-top:8px;" onclick="migrasiDataLama()">🔄 Migrasi Data Lama (sekali klik)</button>
     </div>
-    
     <div class="card">
-      <h3>Daftar Promotor (${list.length})</h3>
-      ${list.length === 0 ? '<div class="alert warn">Belum ada promotor.</div>' : ''}
+      <h3>📋 Daftar Promotor Tampil (${list.length} dari ${totalAll} total)</h3>
+      ${list.length === 0 ? '<div class="alert warn">Belum ada promotor tampil. Klik "Migrasi Data Lama" atau tambah manual.</div>' : ''}
       ${list.map(p => `
         <div class="list-item">
           <div class="kiri">
-            <div class="nama">${p.namaAbsen}</div>
+            <div class="nama">${p.namaAbsen} ${p.role === 'ADMIN' ? '👑' : ''}</div>
             <div class="detail">
-              <b>${p.namaSales}</b> • ${p.merk || '-'} • Target UC: ${p.targetUC} 
-              <span style="color:${p.ikutUC === 'YA' ? '#10b981' : '#ef4444'}; font-weight:700;">
-                (${p.ikutUC === 'YA' ? 'Ikut UC' : 'Bebas Denda UC'})
-              </span>
+              <b>Finger:</b> ${p.namaFinger || '-'} • <b>Sales ID:</b> ${p.namaSalesId || '-'}<br>
+              <b>Email:</b> ${p.email || '<span style="color:#94a3b8;">(tidak bisa login)</span>'}<br>
+              <b>Merk:</b> ${p.merk || '-'} • <b>Target UC:</b> ${p.targetUC} • <b>Ikut UC:</b> ${p.ikutUC}
             </div>
           </div>
           <div class="kanan">
-            <button class="btn-danger btn-sm" onclick="hapusPromotor('${p.key}', '${p.namaAbsen}')">Hapus</button>
+            <button class="btn-primary btn-sm" onclick="bukaFormMaster('${p.key}')">✏️ Edit</button>
+            <button class="btn-danger btn-sm" onclick="hapusMasterPromotor('${p.key}', '${p.namaAbsen}')">🗑️ Hapus</button>
           </div>
-        </div>`).join('')}
-    </div>`;
-}
-
-async function tambahPromotor() {
-  const namaAbsen = document.getElementById('p_namaAbsen').value.trim();
-  const namaSales = document.getElementById('p_namaSales').value.trim();
- 
-  const merk = document.getElementById('p_merk').value.trim();
-  const targetUC = Number(document.getElementById('p_targetUC').value) || 16;
-  const ikutUC = document.getElementById('p_ikutUC').value;
-  const msg = document.getElementById('promotorMsg');
-    if (!namaAbsen || !namaSales) { msg.innerHTML = '<div class="alert err">Nama Absen & Nama Sales wajib diisi!</div>'; return; }
-  try {
-    await window.dbSet(window.dbRef(window.db, 'users/promotor/' + sanitizeKey(namaAbsen)), { namaAbsen, namaSales, merk, targetUC, ikutUC, aktif: true });
-    msg.innerHTML = '<div class="alert ok">✅ Promotor ditambahkan</div>';
-    ['p_namaAbsen','p_namaSales','p_pin','p_merk'].forEach(id => document.getElementById(id).value = '');
-    setTimeout(() => msg.innerHTML = '', 3000);
-  } catch (err) { msg.innerHTML = `<div class="alert err">❌ ${err.message}</div>`; }
-}
-
-async function hapusPromotor(key, nama) {
-  tampilkanKonfirmasi('Hapus Promotor?', `Yakin hapus "${nama}"?`, async () => {
-    await window.dbRemove(window.dbRef(window.db, 'users/promotor/' + key));
-    tampilkanNotif('Berhasil', 'Promotor dihapus.', 'success');
-  }, 'danger');
-}
-
-/* ===== WHITELIST ===== */
-function renderWhitelist() {
-  const list = Object.keys(allWhitelist).map(k => ({ key: k, ...allWhitelist[k] })).sort((a,b) => (a.nama || a.email || '').localeCompare(b.nama || b.email || ''));
-  const listProm = Object.keys(allPromotor).map(k => ({ key: k, ...allPromotor[k] })).sort((a,b) => (a.namaAbsen || '').localeCompare(b.namaAbsen || ''));
-  
-  return `
-    <div class="card">
-      <h3><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/><polyline points="16 11 18 13 22 9"/></svg> Tambah ke Whitelist</h3>
-      <p>Daftarkan email & hubungkan ke Promotor yang sesuai.</p>
-      <div style="margin-bottom:12px;"><label>Email Google</label><input type="email" id="wl_email" placeholder="contoh@gmail.com"></div>
-      <div style="margin-bottom:12px;"><label>Nama Tampilan</label><input type="text" id="wl_nama" placeholder="Nama yang muncul di dashboard"></div>
-      <div style="margin-bottom:12px;">
-        <label>Role</label>
-        <select id="wl_role" onchange="document.getElementById('wl_promotor_wrap').style.display = this.value === 'ADMIN' ? 'none' : 'block'">
-          <option value="PROMOTOR">PROMOTOR</option>
-          <option value="ADMIN">ADMIN</option>
-        </select>
-      </div>
-      <div id="wl_promotor_wrap" style="margin-bottom:16px;">
-        <label>Hubungkan ke Data Promotor</label>
-        <select id="wl_promotorKey">
-          <option value="">-- Pilih Promotor --</option>
-          ${listProm.map(p => `<option value="${p.key}">${p.namaAbsen} (${p.namaSales || '-'})</option>`).join('')}
-        </select>
-        <p style="font-size:11px; color:#64748b; margin-top:6px;">Pilih nama promotor agar data penjualan & absensinya muncul di HP-nya.</p>
-      </div>
-      <button class="btn-primary btn-full" onclick="tambahWhitelist()">Tambah ke Whitelist</button>
-      <div id="whitelistMsg" style="margin-top:12px;"></div>
+        </div>
+      `).join('')}
     </div>
-    <div class="card">
-      <h3>Daftar Whitelist (${list.length})</h3>
-      ${list.length === 0 ? '<div class="alert warn">Belum ada.</div>' : ''}
-      ${list.map(w => `
-        <div class="list-item">
-          <div class="kiri">
-            <div class="nama">${w.nama || '<span style="color:#ef4444;">(Tanpa nama)</span>'}</div>
-            <div class="detail">${w.email || '-'} <span style="color:${w.role === 'ADMIN' ? '#d4af37' : '#3b82f6'}; font-weight:700;">• ${w.role || 'PROMOTOR'}</span>
-            ${w.promotorKey ? `<br><span style="color:#10b981; font-weight:700;">✅ Terhubung ke: ${allPromotor[w.promotorKey]?.namaAbsen || w.promotorKey}</span>` : (w.role === 'PROMOTOR' ? '<br><span style="color:#ef4444;">⚠️ Belum terhubung ke promotor</span>' : '')}
-            </div>
-          </div>
-          <div class="kanan"><button class="btn-danger btn-sm" onclick="hapusWhitelist('${w.key}', '${w.email}')">Hapus</button></div>
-        </div>`).join('')}
-    </div>`;
+  `;
 }
 
-async function tambahWhitelist() {
-  const email = document.getElementById('wl_email').value.trim().toLowerCase();
-  const nama = document.getElementById('wl_nama').value.trim();
-  const role = document.getElementById('wl_role').value;
-  const promotorKey = document.getElementById('wl_promotorKey').value;
-  const msg = document.getElementById('whitelistMsg');
-  
-  if (!email || !nama) { msg.innerHTML = '<div class="alert err">Email & Nama wajib!</div>'; return; }
-  if (!email.includes('@')) { msg.innerHTML = '<div class="alert err">Email tidak valid!</div>'; return; }
-  if (role === 'PROMOTOR' && !promotorKey) { msg.innerHTML = '<div class="alert err">Pilih promotor dulu agar datanya bisa muncul!</div>'; return; }
-  
-  const emailKey = email.replace(/\./g, ',');
-  const dataWl = { email, nama, role };
-  if (role === 'PROMOTOR') {
-    dataWl.promotorKey = promotorKey;
+function bukaFormMaster(key) {
+  document.getElementById('formMsg').innerHTML = '';
+  if (key && allMaster[key]) {
+    const p = allMaster[key];
+    document.getElementById('formTitle').innerText = 'Edit Promotor: ' + p.namaAbsen;
+    document.getElementById('f_keyLama').value = key;
+    document.getElementById('f_namaFinger').value = p.namaFinger || '';
+    document.getElementById('f_namaSalesId').value = p.namaSalesId || '';
+    document.getElementById('f_namaAbsen').value = p.namaAbsen || '';
+    document.getElementById('f_email').value = p.email || '';
+    document.getElementById('f_role').value = p.role || 'PROMOTOR';
+    document.getElementById('f_tampilWeb').value = p.tampilWeb || 'YA';
+    document.getElementById('f_aktif').value = p.aktif || 'YA';
+    document.getElementById('f_merk').value = p.merk || '';
+    document.getElementById('f_targetUC').value = p.targetUC !== undefined ? p.targetUC : 16;
+    document.getElementById('f_ikutUC').value = p.ikutUC || 'YA';
+  } else {
+    document.getElementById('formTitle').innerText = 'Tambah Promotor Baru';
+    document.getElementById('f_keyLama').value = '';
+    ['f_namaFinger','f_namaSalesId','f_namaAbsen','f_email','f_merk'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('f_role').value = 'PROMOTOR';
+    document.getElementById('f_tampilWeb').value = 'YA';
+    document.getElementById('f_aktif').value = 'YA';
+    document.getElementById('f_targetUC').value = 16;
+    document.getElementById('f_ikutUC').value = 'YA';
   }
-  
+  document.getElementById('modalForm').classList.add('active');
+}
+function tutupFormMaster() { document.getElementById('modalForm').classList.remove('active'); }
+
+async function simpanMasterPromotor() {
+  const msg = document.getElementById('formMsg');
+  const keyLama = document.getElementById('f_keyLama').value;
+  const namaFinger = document.getElementById('f_namaFinger').value.trim();
+  const namaSalesId = document.getElementById('f_namaSalesId').value.trim();
+  const namaAbsen = document.getElementById('f_namaAbsen').value.trim();
+  const email = document.getElementById('f_email').value.trim().toLowerCase();
+  const role = document.getElementById('f_role').value;
+  const tampilWeb = document.getElementById('f_tampilWeb').value;
+  const aktif = document.getElementById('f_aktif').value;
+  const merk = document.getElementById('f_merk').value.trim();
+  const targetUC = Number(document.getElementById('f_targetUC').value) || 0;
+  const ikutUC = document.getElementById('f_ikutUC').value;
+
+  if (!namaFinger || !namaSalesId || !namaAbsen) { msg.innerHTML = '<div class="alert err">Nama Finger, Nama Sales ID, dan Nama Tampil Web wajib diisi!</div>'; return; }
+  if (email && !email.includes('@')) { msg.innerHTML = '<div class="alert err">Email tidak valid!</div>'; return; }
+
+  const keyBaru = sanitizeKey(namaAbsen);
+  if (keyLama && keyLama !== keyBaru) {
+    // Cek tabrakan
+    if (allMaster[keyBaru]) { msg.innerHTML = `<div class="alert err">Nama Tampil "${namaAbsen}" sudah dipakai promotor lain! Pakai nama lain.</div>`; return; }
+  } else if (!keyLama) {
+    if (allMaster[keyBaru]) { msg.innerHTML = `<div class="alert err">Nama Tampil "${namaAbsen}" sudah ada! Pakai nama lain atau edit yang sudah ada.</div>`; return; }
+  }
+
+  const dataBaru = { namaFinger, namaSalesId, namaAbsen, email, role, tampilWeb, aktif, merk, targetUC, ikutUC };
+  const updates = {};
+
+  // 1. Simpan master
+  updates['users/master_promotor/' + keyBaru] = dataBaru;
+
+  // 2. Whitelist
+  if (email) {
+    const emailKey = email.replace(/\./g, ',');
+    updates['users/whitelist/' + emailKey] = { email, nama: namaAbsen, role, promotorKey: keyBaru };
+  }
+
+  // 3. Mapping nama
+  updates['users/mapping_nama/' + namaFinger.toUpperCase()] = namaAbsen;
+
+  // 4. Hapus yang lama jika key berubah
+  if (keyLama && keyLama !== keyBaru) {
+    updates['users/master_promotor/' + keyLama] = null;
+    const oldP = allMaster[keyLama];
+    if (oldP && oldP.email) {
+      const oldEmailKey = oldP.email.toLowerCase().replace(/\./g, ',');
+      if (oldEmailKey !== (email ? email.replace(/\./g, ',') : '')) updates['users/whitelist/' + oldEmailKey] = null;
+    }
+    if (oldP && oldP.namaFinger && oldP.namaFinger.toUpperCase() !== namaFinger.toUpperCase()) {
+      updates['users/mapping_nama/' + oldP.namaFinger.toUpperCase()] = null;
+    }
+  }
+
+  // 5. Hapus email lama jika diubah
+  if (keyLama && allMaster[keyLama] && allMaster[keyLama].email) {
+    const oldEmail = allMaster[keyLama].email.toLowerCase();
+    const newEmail = email;
+    if (oldEmail !== newEmail) {
+      updates['users/whitelist/' + oldEmail.replace(/\./g, ',')] = null;
+    }
+  }
+
   try {
-    await window.dbSet(window.dbRef(window.db, 'users/whitelist/' + emailKey), dataWl);
-    msg.innerHTML = '<div class="alert ok">✅ Whitelist ditambahkan & terhubung!</div>';
-    document.getElementById('wl_email').value = '';
-    document.getElementById('wl_nama').value = '';
-    document.getElementById('wl_promotorKey').value = '';
-    setTimeout(() => msg.innerHTML = '', 3000);
+    await window.dbUpdate(window.dbRef(window.db), updates);
+    // Migrasi data absensi & per_promotor jika key berubah
+    if (keyLama && keyLama !== keyBaru) {
+      await migrasiKey(keyLama, keyBaru);
+    }
+    msg.innerHTML = '<div class="alert ok">✅ Tersimpan!</div>';
+    setTimeout(() => { tutupFormMaster(); }, 800);
   } catch (err) { msg.innerHTML = `<div class="alert err">❌ ${err.message}</div>`; }
 }
 
-async function hapusWhitelist(key, email) {
-  tampilkanKonfirmasi('Hapus?', `Yakin hapus "${email}"?`, async () => {
-    await window.dbRemove(window.dbRef(window.db, 'users/whitelist/' + key));
-    tampilkanNotif('Berhasil', 'Dihapus.', 'success');
+async function migrasiKey(keyLama, keyBaru) {
+  try {
+    const updates = {};
+    const snapAbs = await window.dbGet(window.dbRef(window.db, 'absensi/' + BULAN_INI + '/' + keyLama));
+    if (snapAbs.exists()) {
+      Object.keys(snapAbs.val()).forEach(hk => { updates[`absensi/${BULAN_INI}/${keyBaru}/${hk}`] = snapAbs.val()[hk]; });
+      updates[`absensi/${BULAN_INI}/${keyLama}`] = null;
+    }
+    const snapPj = await window.dbGet(window.dbRef(window.db, 'penjualan/' + BULAN_INI + '/per_promotor/' + keyLama));
+    if (snapPj.exists()) {
+      Object.keys(snapPj.val()).forEach(txId => { updates[`penjualan/${BULAN_INI}/per_promotor/${keyBaru}/${txId}`] = snapPj.val()[txId]; });
+      updates[`penjualan/${BULAN_INI}/per_promotor/${keyLama}`] = null;
+    }
+    if (Object.keys(updates).length > 0) await window.dbUpdate(window.dbRef(window.db), updates);
+  } catch (err) { console.error('Migrasi key gagal:', err); }
+}
+
+async function hapusMasterPromotor(key, nama) {
+  tampilkanKonfirmasi('Hapus Promotor?', `Yakin hapus "${nama}"? Data absensi & penjualan bulan ini juga akan dihapus.`, async () => {
+    try {
+      const updates = {};
+      const p = allMaster[key];
+      updates['users/master_promotor/' + key] = null;
+      if (p && p.email) updates['users/whitelist/' + p.email.toLowerCase().replace(/\./g, ',')] = null;
+      if (p && p.namaFinger) updates['users/mapping_nama/' + p.namaFinger.toUpperCase()] = null;
+      updates['absensi/' + BULAN_INI + '/' + key] = null;
+      updates['penjualan/' + BULAN_INI + '/per_promotor/' + key] = null;
+      await window.dbUpdate(window.dbRef(window.db), updates);
+      tampilkanNotif('Berhasil', 'Promotor dihapus.', 'success');
+    } catch (err) { tampilkanNotif('Gagal', err.message, 'danger'); }
   }, 'danger');
+}
+
+async function migrasiDataLama() {
+  tampilkanKonfirmasi('Migrasi Data Lama?', 'Gabungkan users/promotor + users/whitelist + users/mapping_nama → users/master_promotor. Data lama akan dihapus setelah sukses.', async () => {
+    try {
+      const updates = {};
+      const [snapP, snapW, snapM] = await Promise.all([
+        window.dbGet(window.dbRef(window.db, 'users/promotor')),
+        window.dbGet(window.dbRef(window.db, 'users/whitelist')),
+        window.dbGet(window.dbRef(window.db, 'users/mapping_nama'))
+      ]);
+      const promotorLama = snapP.exists() ? snapP.val() : {};
+      const whitelistLama = snapW.exists() ? snapW.val() : {};
+      const mappingLama = snapM.exists() ? snapM.val() : {};
+
+      // Gabungkan berdasarkan namaAbsen
+      const byAbsen = {};
+      Object.keys(promotorLama).forEach(k => {
+        const p = promotorLama[k];
+        const na = String(p.namaAbsen || '').trim();
+        if (!na) return;
+        byAbsen[na] = {
+          namaFinger: na, // default
+          namaSalesId: p.namaSales || '',
+          namaAbsen: na,
+          email: '',
+          role: 'PROMOTOR',
+          tampilWeb: 'YA',
+          aktif: 'YA',
+          merk: p.merk || '',
+          targetUC: p.targetUC !== undefined ? p.targetUC : 16,
+          ikutUC: p.ikutUC || 'YA'
+        };
+      });
+
+      // Override namaFinger dari mapping_lama (mapping: finger → absen)
+      Object.keys(mappingLama).forEach(finger => {
+        const absen = String(mappingLama[finger] || '').trim();
+        if (byAbsen[absen]) byAbsen[absen].namaFinger = finger;
+      });
+
+      // Override email dari whitelist
+      Object.keys(whitelistLama).forEach(emailKey => {
+        const w = whitelistLama[emailKey];
+        if (w.promotorKey && byAbsen[w.promotorKey === '' ? '' : '']) {}
+        const na = String(w.nama || '').trim();
+        if (byAbsen[na]) {
+          byAbsen[na].email = w.email || '';
+          byAbsen[na].role = w.role || 'PROMOTOR';
+        }
+      });
+
+      // Tulis ke master_promotor
+      Object.keys(byAbsen).forEach(na => {
+        const key = sanitizeKey(na);
+        updates['users/master_promotor/' + key] = byAbsen[na];
+      });
+
+      await window.dbUpdate(window.dbRef(window.db), updates);
+      tampilkanNotif('Berhasil', `Migrasi selesai: ${Object.keys(byAbsen).length} promotor.`, 'success');
+      renderTab();
+    } catch (err) { tampilkanNotif('Gagal', err.message, 'danger'); }
+  }, 'warning');
 }
 
 /* ===== TERLAMBAT ===== */
 function renderTerlambat() {
-  const listPromotor = Object.keys(allPromotor).map(k => ({ key: k, ...allPromotor[k] })).sort((a,b) => (a.namaAbsen || '').localeCompare(b.namaAbsen || ''));
-  const today = new Date();
-  const hariIni = today.getDate();
-  const hariTerpilih = window._hariTerlambat || hariIni;
-  
+  const list = Object.keys(allMaster).map(k => ({ key: k, ...allMaster[k] }))
+    .filter(p => p.tampilWeb === 'YA' && p.aktif === 'YA')
+    .sort((a,b) => (a.namaAbsen || '').localeCompare(b.namaAbsen || ''));
+  const hariTerpilih = window._hariTerlambat || new Date().getDate();
   let html = `
     <div class="card">
       <h3>Kelola Terlambat — ${getNamaBulanIndo(BULAN_INI)}</h3>
       <p>Pilih tanggal, lalu klik Tandai.</p>
-      <div style="background:var(--soft); border:1px solid var(--border); border-radius:12px; padding:16px;">
-        <label>Tanggal</label>
-        <input type="number" id="tglTerlambat" min="1" max="31" value="${hariTerpilih}" 
-               style="width:120px; font-size:18px; text-align:center; font-weight:800; padding:12px;"
-               onchange="window._hariTerlambat = this.value; renderTab()">
-      </div>
+      <input type="number" id="tglTerlambat" min="1" max="31" value="${hariTerpilih}" style="width:120px; font-size:18px; text-align:center; font-weight:800; padding:12px;" onchange="window._hariTerlambat=this.value; renderTab()">
     </div>
     <div class="card"><h3>Daftar Promotor</h3>`;
-  
-  listPromotor.forEach(p => {
+  list.forEach(p => {
     const absensiP = allAbsensi[p.key] || {};
     const h = absensiP['hari_' + hariTerpilih];
     const adaFinger = h && h.masuk && String(h.masuk).trim() !== '' && h.masuk !== '-';
     const sudahTerlambat = adaFinger && String(h.terlambat || '').toUpperCase() === 'YA';
     let totalBulanIni = 0;
-    Object.values(absensiP).forEach(a => {
-      const adaMasuk = a && a.masuk && String(a.masuk).trim() !== '' && a.masuk !== '-';
-      if (adaMasuk && String(a.terlambat || '').toUpperCase() === 'YA') totalBulanIni++;
-    });
+    Object.values(absensiP).forEach(a => { if (a && a.masuk && String(a.terlambat||'').toUpperCase() === 'YA') totalBulanIni++; });
     html += `
       <div class="list-item ${sudahTerlambat ? 'late-item' : ''}">
         <div class="kiri">
           <div class="nama">${p.namaAbsen}</div>
-          <div class="detail">${p.namaSales || '-'} • ${p.merk || '-'}
+          <div class="detail">${p.namaSalesId || '-'} • ${p.merk || '-'}
             ${!adaFinger ? '<span style="color:#94a3b8;"> • Belum ada finger</span>' : ''}
             ${totalBulanIni > 0 ? `<span style="color:#d97706; font-weight:700;"> • ${totalBulanIni}x terlambat</span>` : ''}
           </div>
         </div>
         <div class="kanan">
           ${sudahTerlambat ? '<span class="late-marker">TERLAMBAT</span>' : ''}
-          ${adaFinger ? `<button class="${sudahTerlambat ? 'btn-danger' : 'btn-primary'} btn-sm" onclick="toggleTerlambat('${p.key}', ${hariTerpilih}, ${sudahTerlambat})">${sudahTerlambat ? 'Batal' : 'Tandai'}</button>`
-          : `<button class="btn-soft btn-sm" disabled style="opacity:0.4;">-</button>`}
+          ${adaFinger ? `<button class="${sudahTerlambat ? 'btn-danger' : 'btn-primary'} btn-sm" onclick="toggleTerlambat('${p.key}', ${hariTerpilih}, ${sudahTerlambat})">${sudahTerlambat ? 'Batal' : 'Tandai'}</button>` : `<button class="btn-soft btn-sm" disabled style="opacity:0.4;">-</button>`}
         </div>
       </div>`;
   });
@@ -1260,9 +1309,7 @@ async function toggleTerlambat(promotorKey, hari, sudahTerlambat) {
   try {
     const path = `absensi/${BULAN_INI}/${promotorKey}/hari_${hari}`;
     const snap = await window.dbGet(window.dbRef(window.db, path));
-    if (snap.exists()) {
-      await window.dbUpdate(window.dbRef(window.db, path), { terlambat: sudahTerlambat ? '' : 'YA' });
-    }
+    if (snap.exists()) await window.dbUpdate(window.dbRef(window.db, path), { terlambat: sudahTerlambat ? '' : 'YA' });
     renderTab();
   } catch (err) { tampilkanNotif('Gagal', err.message, 'danger'); }
 }
@@ -1272,16 +1319,13 @@ function renderPromoSOP() {
   const promoList = Array.isArray(allPromo) ? allPromo : Object.values(allPromo || {});
   const rulesList = Array.isArray(allRules) ? allRules : Object.values(allRules || {});
   return `
-       <div class="card">
+    <div class="card">
       <h3>Tambah Promo</h3>
-      <div style="margin-bottom:12px;"><label>Judul</label><input type="text" id="promo_judul" placeholder="PROMO BULAN INI"></div>
-      <div style="margin-bottom:12px;"><label>Periode</label><input type="text" id="promo_periode" placeholder="Oktober 2026"></div>
-      
-      <!-- KOLOM DETAIL DIPISAH -->
-      <div style="margin-bottom:10px;"><label>Detail Promo 1</label><input type="text" id="promo_detail_1" placeholder="Contoh: Free Bracket Pembelian LED TV 32"></div>
-      <div style="margin-bottom:10px;"><label>Detail Promo 2 (Opsional)</label><input type="text" id="promo_detail_2" placeholder="Contoh: Free Pasang AC Inverter"></div>
-      <div style="margin-bottom:16px;"><label>Detail Promo 3 (Opsional)</label><input type="text" id="promo_detail_3" placeholder="Contoh: Diskon 10%"></div>
-      
+      <div style="margin-bottom:12px;"><label>Judul</label><input type="text" id="promo_judul"></div>
+      <div style="margin-bottom:12px;"><label>Periode</label><input type="text" id="promo_periode"></div>
+      <div style="margin-bottom:10px;"><label>Detail 1</label><input type="text" id="promo_detail_1"></div>
+      <div style="margin-bottom:10px;"><label>Detail 2 (Opsional)</label><input type="text" id="promo_detail_2"></div>
+      <div style="margin-bottom:16px;"><label>Detail 3 (Opsional)</label><input type="text" id="promo_detail_3"></div>
       <button class="btn-primary btn-full" onclick="tambahPromo()">Tambah Promo</button>
       <div id="promoMsg" style="margin-top:12px;"></div>
     </div>
@@ -1290,24 +1334,18 @@ function renderPromoSOP() {
       ${promoList.length === 0 ? '<div class="alert warn">Belum ada.</div>' : ''}
       ${promoList.map((p, i) => `
         <div class="list-item">
-          <div class="kiri"><div class="nama">🔥 ${p.judul || '-'}</div>
-            <div class="detail">${p.periode ? `📅 ${p.periode} • ` : ''}${p.detail || '-'}</div>
-          </div>
+          <div class="kiri"><div class="nama">🔥 ${p.judul || '-'}</div><div class="detail">${p.periode ? `📅 ${p.periode} • ` : ''}${p.detail || '-'}</div></div>
           <div class="kanan"><button class="btn-danger btn-sm" onclick="hapusPromo(${i})">Hapus</button></div>
         </div>`).join('')}
     </div>
     <div class="card">
       <h3>Tambah SOP</h3>
-      <div style="margin-bottom:12px;"><label>Judul SOP</label><input type="text" id="sop_judul"></div>
-      <div style="margin-bottom:16px;">
-        <label>Gambar SOP (maks 500KB)</label>
-        <div class="file-wrap" onclick="document.getElementById('sop_file').click()" style="padding:24px;">
-          <svg viewBox="0 0 24 24" style="width:36px;height:36px;"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-          <p id="sop_file_label"><strong>Klik pilih gambar</strong></p>
-          <input type="file" id="sop_file" accept="image/*" onchange="pilihFileSOP(event);">
-        </div>
+      <div style="margin-bottom:12px;"><label>Judul</label><input type="text" id="sop_judul"></div>
+      <div class="file-wrap" onclick="document.getElementById('sop_file').click()" style="padding:24px;">
+        <p id="sop_file_label"><strong>Klik pilih gambar (maks 500KB)</strong></p>
+        <input type="file" id="sop_file" accept="image/*" onchange="pilihFileSOP(event);">
       </div>
-      <button class="btn-primary btn-full" onclick="tambahSOP()">Tambah SOP</button>
+      <button class="btn-primary btn-full" style="margin-top:12px;" onclick="tambahSOP()">Tambah SOP</button>
       <div id="sopMsg" style="margin-top:12px;"></div>
     </div>
     <div class="card">
@@ -1315,54 +1353,31 @@ function renderPromoSOP() {
       ${rulesList.length === 0 ? '<div class="alert warn">Belum ada.</div>' : ''}
       ${rulesList.map((r, i) => `
         <div class="list-item">
-          <div class="kiri"><div class="nama">📌 ${r.poin || r.judul || '-'}</div>
-            <div class="detail">${r.gambar ? '🖼️ Ada gambar' : 'Tanpa gambar'}</div>
-          </div>
-          <div class="kanan">
-            ${r.gambar ? `<img src="${r.gambar}" class="sop-preview">` : ''}
-            <button class="btn-danger btn-sm" onclick="hapusSOP(${i})">Hapus</button>
-          </div>
+          <div class="kiri"><div class="nama">📌 ${r.poin || r.judul || '-'}</div><div class="detail">${r.gambar ? '🖼️ Ada gambar' : 'Tanpa gambar'}</div></div>
+          <div class="kanan">${r.gambar ? `<img src="${r.gambar}" class="sop-preview">` : ''}<button class="btn-danger btn-sm" onclick="hapusSOP(${i})">Hapus</button></div>
         </div>`).join('')}
     </div>`;
 }
-
 async function tambahPromo() {
   const judul = document.getElementById('promo_judul').value.trim();
   const periode = document.getElementById('promo_periode').value.trim();
-  
   const d1 = document.getElementById('promo_detail_1').value.trim();
   const d2 = document.getElementById('promo_detail_2').value.trim();
   const d3 = document.getElementById('promo_detail_3').value.trim();
-  
-  // Gabungkan menjadi array, lalu ubah ke string dengan enter (\n)
-  const detailArray = [d1, d2, d3].filter(Boolean);
-  const detailGabungan = detailArray.join('\n');
-
   const msg = document.getElementById('promoMsg');
   if (!judul) { msg.innerHTML = '<div class="alert err">Judul wajib!</div>'; return; }
-  
   try {
     const snap = await window.dbGet(window.dbRef(window.db, 'info/promo'));
     let arr = snap.exists() ? snap.val() : [];
     if (!Array.isArray(arr)) arr = Object.values(arr);
-    
-    arr.push({ judul, periode, detail: detailGabungan });
+    arr.push({ judul, periode, detail: [d1,d2,d3].filter(Boolean).join('\n') });
     await window.dbSet(window.dbRef(window.db, 'info/promo'), arr);
     msg.innerHTML = '<div class="alert ok">✅ Ditambahkan!</div>';
-    
-    // Reset Form
-    document.getElementById('promo_judul').value = '';
-    document.getElementById('promo_periode').value = '';
-    document.getElementById('promo_detail_1').value = '';
-    document.getElementById('promo_detail_2').value = '';
-    document.getElementById('promo_detail_3').value = '';
-    
     setTimeout(() => msg.innerHTML = '', 3000);
   } catch (err) { msg.innerHTML = `<div class="alert err">❌ ${err.message}</div>`; }
 }
-
 async function hapusPromo(index) {
-  tampilkanKonfirmasi('Hapus Promo?', 'Yakin hapus?', async () => {
+  tampilkanKonfirmasi('Hapus Promo?', 'Yakin?', async () => {
     try {
       const snap = await window.dbGet(window.dbRef(window.db, 'info/promo'));
       let arr = snap.exists() ? snap.val() : [];
@@ -1374,7 +1389,7 @@ async function hapusPromo(index) {
     } catch (err) { tampilkanNotif('Gagal', err.message, 'danger'); }
   }, 'danger');
 }
-
+let _sopImageData = null;
 function pilihFileSOP(e) {
   const file = e.target.files[0];
   if (!file) return;
@@ -1386,7 +1401,6 @@ function pilihFileSOP(e) {
   };
   reader.readAsDataURL(file);
 }
-
 async function tambahSOP() {
   const judul = document.getElementById('sop_judul').value.trim();
   const msg = document.getElementById('sopMsg');
@@ -1399,15 +1413,12 @@ async function tambahSOP() {
     arr.push({ poin: judul, deskripsi: '', gambar: _sopImageData });
     await window.dbSet(window.dbRef(window.db, 'info/rules'), arr);
     msg.innerHTML = '<div class="alert ok">✅ Ditambahkan!</div>';
-    document.getElementById('sop_judul').value = '';
-    document.getElementById('sop_file_label').innerHTML = '<strong>Klik pilih gambar</strong>';
     _sopImageData = null;
     setTimeout(() => msg.innerHTML = '', 3000);
   } catch (err) { msg.innerHTML = `<div class="alert err">❌ ${err.message}</div>`; }
 }
-
 async function hapusSOP(index) {
-  tampilkanKonfirmasi('Hapus SOP?', 'Yakin hapus?', async () => {
+  tampilkanKonfirmasi('Hapus SOP?', 'Yakin?', async () => {
     try {
       const snap = await window.dbGet(window.dbRef(window.db, 'info/rules'));
       let arr = snap.exists() ? snap.val() : [];
@@ -1426,193 +1437,33 @@ function renderDanger() {
     <div class="card">
       <h3 style="color:var(--danger);">⚠️ Danger Zone</h3>
       <p>Hati-hati! Data yang dihapus tidak bisa dikembalikan.</p>
-      <button class="btn-warning btn-full" style="margin-bottom:12px;" onclick="downloadExcelBulanIni()">
-        <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-        Download Data Bulan Ini (Excel)
-      </button>
+      <button class="btn-warning btn-full" style="margin-bottom:12px;" onclick="downloadExcelBulanIni()">📥 Download Data Bulan Ini (Excel)</button>
       <button class="btn-danger btn-full" style="margin-bottom:12px;" onclick="hapusPenjualanBulanIni()">Hapus Penjualan Bulan Ini</button>
       <button class="btn-danger btn-full" style="margin-bottom:12px;" onclick="hapusAbsensiBulanIni()">Hapus Absensi Bulan Ini</button>
-      <button class="btn-danger btn-full" style="margin-bottom:12px;" onclick="hapusPromotorAll()">Hapus Semua Promotor</button>
       <button class="btn-danger btn-full" onclick="hapusSemua()">Hapus SEMUA Data</button>
     </div>
   `;
 }
-
-/* ===== CEK BULAN BARU & TAWARKAN RESET ===== */
-async function cekDanTawarkanResetBulan() {
-  try {
-    const snapLastReset = await window.dbGet(window.dbRef(window.db, 'config/lastResetBulan'));
-    const lastReset = snapLastReset.exists() ? snapLastReset.val() : '';
-    
-    if (lastReset && lastReset !== BULAN_INI) {
-      const bulanLama = lastReset;
-      tampilkanModal(
-        '🎉 Bulan Baru Terdeteksi!',
-        `Bulan berganti dari ${getNamaBulanIndo(bulanLama)} ke ${getNamaBulanIndo(BULAN_INI)}.\n\nDownload dulu data ${getNamaBulanIndo(bulanLama)} sebagai Excel SEBELUM dihapus!`,
-        {
-          type: 'info',
-          customActions: [
-            { text: '📥 Download Excel', class: 'modal-btn-ok-warning', onclick: "downloadBulanLama('" + bulanLama + "')" },
-            { text: '🗑️ Reset Sekarang', class: 'modal-btn-ok-danger', onclick: "resetBulanLama('" + bulanLama + "')" },
-            { text: '⏰ Nanti Saja', class: 'modal-btn-cancel', onclick: "tutupModal()" }
-          ]
-        }
-      );
-    } else if (!lastReset) {
-      await window.dbSet(window.dbRef(window.db, 'config/lastResetBulan'), BULAN_INI);
-    }
-  } catch (err) {
-    console.error('Cek bulan gagal:', err);
-  }
-}
-
-async function downloadBulanLama(bulanLama) {
-  try {
-    const [snapJualAll, snapJualRoot, snapAbsen] = await Promise.all([
-      window.dbGet(window.dbRef(window.db, 'penjualan/' + bulanLama + '/all')),
-      window.dbGet(window.dbRef(window.db, 'penjualan/' + bulanLama)),
-      window.dbGet(window.dbRef(window.db, 'absensi/' + bulanLama))
-    ]);
-    
-    let dataJual = snapJualAll.exists() ? Object.values(snapJualAll.val()) : [];
-    if (dataJual.length === 0 && snapJualRoot.exists()) {
-      const raw = snapJualRoot.val();
-      dataJual = [];
-      Object.keys(raw).forEach(k => {
-        if (k === 'all' || k === 'per_promotor') return;
-        dataJual.push(raw[k]);
-      });
-    }
-    const dataAbsen = snapAbsen.exists() ? snapAbsen.val() : {};
-    
-    const wb = XLSX.utils.book_new();
-    
-    if (dataJual.length > 0) {
-      const wsJual = XLSX.utils.json_to_sheet(dataJual.map(x => ({
-        'No Faktur': x.noFaktur || '', 'Tanggal': x.tanggal || '',
-        'Barcode': x.barcode || '', 'Nama Barang': x.namaBarang || '',
-        'Qty': x.qty || 0, 'Subtotal': x.subtotal || 0,
-        'Nama Sales': x.namaSales || '', 'Kategori': x.kategori || '',
-        'Merk': x.merk || ''
-      })));
-      XLSX.utils.book_append_sheet(wb, wsJual, 'Penjualan');
-    }
-    
-    const absenRows = [];
-    Object.keys(dataAbsen).forEach(kp => {
-      const p = allPromotor[kp] || {};
-      const absensiP = dataAbsen[kp];
-      Object.keys(absensiP).forEach(hk => {
-        const a = absensiP[hk];
-        if (a && typeof a === 'object') {
-          absenRows.push({
-            'Promotor': p.namaAbsen || a.nama || '-',
-            'Hari': a.hari || '',
-            'Masuk': a.masuk || '', 'Istirahat 1': a.istirahat1 || '',
-            'Kembali 1': a.kembali1 || '', 'Istirahat 2': a.istirahat2 || '',
-            'Kembali 2': a.kembali2 || '', 'Pulang': a.pulang || '',
-            'Terlambat': a.terlambat || ''
-          });
-        }
-      });
-    });
-    if (absenRows.length > 0) {
-      const wsAbsen = XLSX.utils.json_to_sheet(absenRows);
-      XLSX.utils.book_append_sheet(wb, wsAbsen, 'Absensi');
-    }
-    
-    XLSX.writeFile(wb, `Backup_UFO_${bulanLama}.xlsx`);
-    tampilkanNotif('Berhasil', 'File Excel berhasil diunduh!\n\nSetelah download selesai, klik "Reset Sekarang" untuk hapus data bulan lalu.', 'success');
-  } catch (err) {
-    tampilkanNotif('Gagal', 'Error: ' + err.message, 'danger');
-  }
-}
-
-async function resetBulanLama(bulanLama) {
-  tampilkanKonfirmasi(
-    '⚠️ Reset Bulan ' + getNamaBulanIndo(bulanLama) + '?',
-    'Semua data penjualan & absensi bulan ' + getNamaBulanIndo(bulanLama) + ' akan DIHAPUS PERMANEN.\n\nPastikan sudah download Excel dulu!\n\nLanjutkan?',
-    async () => {
-      try {
-        await window.dbRemove(window.dbRef(window.db, 'penjualan/' + bulanLama));
-        await window.dbRemove(window.dbRef(window.db, 'absensi/' + bulanLama));
-        await window.dbSet(window.dbRef(window.db, 'config/lastResetBulan'), BULAN_INI);
-        tampilkanNotif('Berhasil', 'Bulan lama berhasil direset. Sekarang pakai bulan ' + getNamaBulanIndo(BULAN_INI), 'success');
-        renderTab();
-      } catch (err) {
-        tampilkanNotif('Gagal', err.message, 'danger');
-      }
-    },
-    'danger'
-  );
-}
-
 async function downloadExcelBulanIni() {
-  let dataJual = [];
-  const snapAll = await window.dbGet(window.dbRef(window.db, 'penjualan/' + BULAN_INI + '/all'));
-  if (snapAll.exists()) {
-    dataJual = Object.values(snapAll.val());
-  } else {
-    dataJual = Object.values(allPenjualan);
-  }
+  const dataJual = Object.values(allPenjualan);
   const absenRows = [];
   Object.keys(allAbsensi).forEach(kp => {
-    const p = allPromotor[kp] || {};
-    const absensiP = allAbsensi[kp];
-    Object.keys(absensiP).forEach(hk => {
-      const a = absensiP[hk];
-      if (a && typeof a === 'object') {
-        absenRows.push({
-          'Promotor': p.namaAbsen || a.nama || '-',
-          'Hari': a.hari || '',
-          'Masuk': a.masuk || '', 'Istirahat 1': a.istirahat1 || '',
-          'Kembali 1': a.kembali1 || '', 'Istirahat 2': a.istirahat2 || '',
-          'Kembali 2': a.kembali2 || '', 'Pulang': a.pulang || '',
-          'Terlambat': a.terlambat || ''
-        });
-      }
+    const p = allMaster[kp] || {};
+    Object.keys(allAbsensi[kp]).forEach(hk => {
+      const a = allAbsensi[kp][hk];
+      if (a && typeof a === 'object') absenRows.push({ Promotor: p.namaAbsen || a.nama || '-', Hari: a.hari || '', Masuk: a.masuk || '', Pulang: a.pulang || '', Terlambat: a.terlambat || '' });
     });
   });
-  
-  if (dataJual.length === 0 && absenRows.length === 0) {
-    tampilkanNotif('Kosong', 'Belum ada data bulan ini.', 'warning');
-    return;
-  }
-  
+  if (dataJual.length === 0 && absenRows.length === 0) { tampilkanNotif('Kosong', 'Belum ada data.', 'warning'); return; }
   const wb = XLSX.utils.book_new();
-  if (dataJual.length > 0) {
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(dataJual), 'Penjualan');
-  }
-  if (absenRows.length > 0) {
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(absenRows), 'Absensi');
-  }
+  if (dataJual.length > 0) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(dataJual), 'Penjualan');
+  if (absenRows.length > 0) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(absenRows), 'Absensi');
   XLSX.writeFile(wb, `Data_UFO_${BULAN_INI}.xlsx`);
-  tampilkanNotif('Berhasil', 'File Excel diunduh.', 'success');
 }
-
-async function hapusPenjualanBulanIni() {
-  tampilkanKonfirmasi('Hapus Penjualan?', 'Semua penjualan ' + getNamaBulanIndo(BULAN_INI) + ' akan dihapus!', async () => {
-    await window.dbRemove(window.dbRef(window.db, 'penjualan/' + BULAN_INI));
-    tampilkanNotif('Berhasil', 'Penjualan dihapus.', 'success');
-  }, 'danger');
-}
-
-async function hapusAbsensiBulanIni() {
-  tampilkanKonfirmasi('Hapus Absensi?', 'Semua absensi ' + getNamaBulanIndo(BULAN_INI) + ' akan dihapus!', async () => {
-    await window.dbRemove(window.dbRef(window.db, 'absensi/' + BULAN_INI));
-    tampilkanNotif('Berhasil', 'Absensi dihapus.', 'success');
-  }, 'danger');
-}
-
-async function hapusPromotorAll() {
-  tampilkanKonfirmasi('Hapus Semua Promotor?', 'Data promotor akan dihapus permanen!', async () => {
-    await window.dbRemove(window.dbRef(window.db, 'users/promotor'));
-    tampilkanNotif('Berhasil', 'Promotor dihapus.', 'success');
-  }, 'danger');
-}
-
+async function hapusPenjualanBulanIni() { tampilkanKonfirmasi('Hapus Penjualan?', 'Yakin?', async () => { await window.dbRemove(window.dbRef(window.db, 'penjualan/' + BULAN_INI)); tampilkanNotif('Berhasil', 'Dihapus.', 'success'); }, 'danger'); }
+async function hapusAbsensiBulanIni() { tampilkanKonfirmasi('Hapus Absensi?', 'Yakin?', async () => { await window.dbRemove(window.dbRef(window.db, 'absensi/' + BULAN_INI)); tampilkanNotif('Berhasil', 'Dihapus.', 'success'); }, 'danger'); }
 async function hapusSemua() {
-  tampilkanKonfirmasi('⚠️ HAPUS SEMUA?', 'Semua data akan dihapus permanen!', async () => {
+  tampilkanKonfirmasi('⚠️ HAPUS SEMUA?', 'Semua data dihapus permanen!', async () => {
     await window.dbRemove(window.dbRef(window.db, 'penjualan'));
     await window.dbRemove(window.dbRef(window.db, 'users'));
     await window.dbRemove(window.dbRef(window.db, 'info'));
@@ -1621,7 +1472,51 @@ async function hapusSemua() {
     tampilkanNotif('Berhasil', 'Semua dihapus.', 'success');
   }, 'danger');
 }
-</script>
 
+/* ===== CEK BULAN BARU ===== */
+async function cekDanTawarkanResetBulan() {
+  try {
+    const snap = await window.dbGet(window.dbRef(window.db, 'config/lastResetBulan'));
+    const lastReset = snap.exists() ? snap.val() : '';
+    if (lastReset && lastReset !== BULAN_INI) {
+      tampilkanModal('🎉 Bulan Baru!', `Bulan berganti dari ${getNamaBulanIndo(lastReset)} ke ${getNamaBulanIndo(BULAN_INI)}. Download dulu data bulan lama sebelum reset!`, {
+        type: 'info',
+        customActions: [
+          { text: '📥 Download', class: 'modal-btn-ok-warning', onclick: `downloadBulanLama('${lastReset}')` },
+          { text: '🗑️ Reset', class: 'modal-btn-ok-danger', onclick: `resetBulanLama('${lastReset}')` },
+          { text: '⏰ Nanti', class: 'modal-btn-cancel', onclick: 'tutupModal()' }
+        ]
+      });
+    } else if (!lastReset) {
+      await window.dbSet(window.dbRef(window.db, 'config/lastResetBulan'), BULAN_INI);
+    }
+  } catch (err) { console.error(err); }
+}
+async function downloadBulanLama(bulanLama) {
+  try {
+    const [snapJual, snapAbs] = await Promise.all([
+      window.dbGet(window.dbRef(window.db, 'penjualan/' + bulanLama + '/all')),
+      window.dbGet(window.dbRef(window.db, 'absensi/' + bulanLama))
+    ]);
+    const wb = XLSX.utils.book_new();
+    if (snapJual.exists()) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(Object.values(snapJual.val())), 'Penjualan');
+    if (snapAbs.exists()) {
+      const absenRows = [];
+      const absenVal = snapAbs.val();
+      Object.keys(absenVal).forEach(kp => Object.keys(absenVal[kp]).forEach(hk => { absenRows.push({ Promotor: kp, ...absenVal[kp][hk] }); }));
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(absenRows), 'Absensi');
+    }
+    XLSX.writeFile(wb, `Backup_UFO_${bulanLama}.xlsx`);
+  } catch (err) { tampilkanNotif('Gagal', err.message, 'danger'); }
+}
+async function resetBulanLama(bulanLama) {
+  tampilkanKonfirmasi('Reset Bulan ' + getNamaBulanIndo(bulanLama) + '?', 'Data bulan lama dihapus permanen!', async () => {
+    await window.dbRemove(window.dbRef(window.db, 'penjualan/' + bulanLama));
+    await window.dbRemove(window.dbRef(window.db, 'absensi/' + bulanLama));
+    await window.dbSet(window.dbRef(window.db, 'config/lastResetBulan'), BULAN_INI);
+    tampilkanNotif('Berhasil', 'Bulan lama direset.', 'success');
+  }, 'danger');
+}
+</script>
 </body>
 </html>
