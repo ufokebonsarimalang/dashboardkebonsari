@@ -5,16 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>UFO Kebonsari - Dashboard Promotor</title>
 <script>
-  // Mencegah klik kanan
   document.addEventListener('contextmenu', event => event.preventDefault());
-
-  // Mencegah tombol F12, Ctrl+Shift+I, Ctrl+U (View Source)
   document.onkeydown = function(e) {
-    if (e.keyCode == 123) { return false; } // F12
-    if (e.ctrlKey && e.shiftKey && e.keyCode == 'I'.charCodeAt(0)) { return false; } // Ctrl+Shift+I
-    if (e.ctrlKey && e.shiftKey && e.keyCode == 'C'.charCodeAt(0)) { return false; } // Ctrl+Shift+C
-    if (e.ctrlKey && e.shiftKey && e.keyCode == 'J'.charCodeAt(0)) { return false; } // Ctrl+Shift+J
-    if (e.ctrlKey && e.keyCode == 'U'.charCodeAt(0)) { return false; } // Ctrl+U
+    if (e.keyCode == 123) { return false; }
+    if (e.ctrlKey && e.shiftKey && e.keyCode == 'I'.charCodeAt(0)) { return false; }
+    if (e.ctrlKey && e.shiftKey && e.keyCode == 'C'.charCodeAt(0)) { return false; }
+    if (e.ctrlKey && e.shiftKey && e.keyCode == 'J'.charCodeAt(0)) { return false; }
+    if (e.ctrlKey && e.keyCode == 'U'.charCodeAt(0)) { return false; }
   }
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1257,12 +1254,10 @@ function safeImageUrl(url) {
     if (!url) return '';
     const s = String(url).trim();
 
-    // 1) Izinkan data URL gambar (base64) — dari upload admin
     if (/^data:image\/(png|jpe?g|gif|webp|bmp|svg\+xml);base64,[A-Za-z0-9+/=\s]+$/i.test(s)) {
-        return s; // jangan di-escape, data URL aman & escapeHtml akan merusak base64
+        return s;
     }
 
-    // 2) Izinkan http & https (untuk gambar dari URL eksternal)
     if (/^https?:\/\//i.test(s)) {
         return escapeHtml(s);
     }
@@ -1270,6 +1265,51 @@ function safeImageUrl(url) {
     return '';
 }
 window.safeImageUrl = safeImageUrl;
+
+/* ===== BULAN HELPER ===== */
+function getBulanSekarang() {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+}
+
+function getNamaBulanIndo(bulanStr) {
+  const nama = ['','Januari','Februari','Maret','April','Mei','Juni',
+                'Juli','Agustus','September','Oktober','November','Desember'];
+  const [thn, bln] = String(bulanStr).split('-');
+  return `${nama[parseInt(bln)] || '?'} ${thn}`;
+}
+
+let BULAN_AKTIF = null;
+
+async function tentukanBulanAktif() {
+  try {
+    const snap = await window.dbGet(window.dbRef(window.db, 'config/bulanAktif'));
+    if (snap.exists() && snap.val() && /^\d{4}-\d{2}$/.test(snap.val())) {
+      console.log('📅 Bulan dari config:', snap.val());
+      return snap.val();
+    }
+  } catch (err) { console.warn('Config gagal:', err); }
+
+  try {
+    const [snapJual, snapAbsen] = await Promise.all([
+      window.dbGet(window.dbRef(window.db, 'penjualan')),
+      window.dbGet(window.dbRef(window.db, 'absensi'))
+    ]);
+    const setBulan = new Set();
+    if (snapJual.exists()) Object.keys(snapJual.val()).forEach(k => { if (/^\d{4}-\d{2}$/.test(k)) setBulan.add(k); });
+    if (snapAbsen.exists()) Object.keys(snapAbsen.val()).forEach(k => { if (/^\d{4}-\d{2}$/.test(k)) setBulan.add(k); });
+    if (setBulan.size > 0) {
+      const terbaru = Array.from(setBulan).sort().reverse()[0];
+      console.log('📅 Bulan dari data terbaru:', terbaru);
+      return terbaru;
+    }
+  } catch (err) { console.warn('Scan data gagal:', err); }
+
+  const b = getBulanSekarang();
+  console.log('📅 Fallback ke bulan sekarang:', b);
+  return b;
+}
+
 /* ===== SVG ICONS ===== */
 const ICONS = {
   absensi: `<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/></svg>`,
@@ -1463,7 +1503,6 @@ function loadInfoRealtime() {
   infoListenerAttached = true;
   if (!window.firebaseAuth || !window.firebaseAuth.currentUser) return;
   
-  // Memantau perubahan data secara real-time
   window.dbOnValue(window.dbRef(window.db, 'info'), snap => {
     if (snap.exists()) {
       const data = snap.val();
@@ -1474,9 +1513,8 @@ function loadInfoRealtime() {
       infoData.rules = [];
     }
     
-    // Jika promotor sedang membuka menu Promo atau SOP, update layarnya otomatis
     if (currentMenu === 'promo' || currentMenu === 'sop') {
-      tampilkanDetail(currentMenu, true); // parameter true = jangan tampilkan loading
+      tampilkanDetail(currentMenu, true);
     }
   });
 }
@@ -1512,6 +1550,12 @@ async function tampilkanDashboard() {
 
   await loadPromotorList();
 
+  // ── TENTUKAN BULAN AKTIF OTOMATIS ──
+  BULAN_AKTIF = await tentukanBulanAktif();
+  console.log('🎯 Bulan aktif:', BULAN_AKTIF);
+  
+  pasangListenerBulan();
+
   const isAdmin = currentUser.role === 'ADMIN';
   if (isAdmin) {
     promotorTerpilih = null;
@@ -1530,7 +1574,6 @@ async function tampilkanDashboard() {
   await muatDataBulanIni();
   renderMenuGrid();
   
-  // Cek status tombol refresh
   const today = new Date().toDateString();
   const lastRefresh = localStorage.getItem('ufo_last_refresh_' + currentUser.key);
   const btnRefresh = document.querySelector('.refresh-btn');
@@ -1542,15 +1585,40 @@ async function tampilkanDashboard() {
 }
 window.tampilkanDashboard = tampilkanDashboard;
 
+let bulanListenerAttached = false;
+function pasangListenerBulan() {
+  if (bulanListenerAttached) return;
+  bulanListenerAttached = true;
+  
+  window.dbOnValue(window.dbRef(window.db, 'config/bulanAktif'), async (snap) => {
+    if (!snap.exists()) return;
+    const bulanBaru = snap.val();
+    if (!bulanBaru || bulanBaru === BULAN_AKTIF) return;
+    if (!/^\d{4}-\d{2}$/.test(bulanBaru)) return;
+    
+    console.log('📅 Bulan berubah:', BULAN_AKTIF, '→', bulanBaru);
+    BULAN_AKTIF = bulanBaru;
+    await muatDataBulanIni(true);
+    if (currentMenu) {
+      tampilkanDetail(currentMenu);
+    } else {
+      renderMenuGrid();
+    }
+    showToast('📅 Data ' + getNamaBulanIndo(bulanBaru) + ' dimuat', 'info');
+  });
+}
+
 /* ===== LOADER DATA (pakai cache + get) ===== */
 async function muatDataBulanIni(forceRefresh = false) {
   const isAdminRole = currentUser.role === 'ADMIN';
+  const B = BULAN_AKTIF;
+  if (!B) { console.warn('BULAN_AKTIF belum di-set'); return; }
 
   // --- Penjualan ---
   const pathProm = isAdminRole
-    ? 'penjualan/2026-10/all'
-    : 'penjualan/2026-10/per_promotor/' + currentUser.key;
-  const cacheKeyProm = isAdminRole ? 'penjualan_2026-10_all' : 'penjualan_2026-10_' + currentUser.key;
+    ? 'penjualan/' + B + '/all'
+    : 'penjualan/' + B + '/per_promotor/' + currentUser.key;
+  const cacheKeyProm = isAdminRole ? 'penjualan_' + B + '_all' : 'penjualan_' + B + '_' + currentUser.key;
 
   let dataPenjualan = forceRefresh ? null : cacheGet(cacheKeyProm);
   if (!dataPenjualan) {
@@ -1562,9 +1630,8 @@ async function muatDataBulanIni(forceRefresh = false) {
           if (item && item.namaSales) allPenjualan.push(item);
         });
       }
-      // Fallback ke root (kalau data belum dimigrasi)
       if (allPenjualan.length === 0) {
-        const snapRoot = await window.dbGet(window.dbRef(window.db, 'penjualan/2026-10'));
+        const snapRoot = await window.dbGet(window.dbRef(window.db, 'penjualan/' + B));
         if (snapRoot.exists()) {
           const raw = snapRoot.val();
           const arr = [];
@@ -1597,16 +1664,16 @@ async function muatDataBulanIni(forceRefresh = false) {
 
   // --- Absensi ---
   const keyUser = isAdminRole ? null : currentUser.key;
-  const cacheKey = keyUser ? 'absensi_2026-10_' + keyUser : 'absensi_2026-10';
+  const cacheKey = keyUser ? 'absensi_' + B + '_' + keyUser : 'absensi_' + B;
 
   let dataAbsensi = forceRefresh ? null : cacheGet(cacheKey);
   if (!dataAbsensi) {
     try {
       if (isAdminRole) {
-        const snap = await window.dbGet(window.dbRef(window.db, 'absensi/2026-10'));
+        const snap = await window.dbGet(window.dbRef(window.db, 'absensi/' + B));
         allAbsensiAll = snap.exists() ? snap.val() : {};
       } else {
-        const snap = await window.dbGet(window.dbRef(window.db, 'absensi/2026-10/' + keyUser));
+        const snap = await window.dbGet(window.dbRef(window.db, 'absensi/' + B + '/' + keyUser));
         allAbsensiAll = {};
         allAbsensiAll[keyUser] = snap.exists() ? snap.val() : {};
       }
@@ -1619,7 +1686,6 @@ async function muatDataBulanIni(forceRefresh = false) {
     allAbsensiAll = dataAbsensi;
   }
 
-  // --- Set allAbsensi sesuai user/admin ---
   if (isAdminRole && promotorTerpilih) {
     allAbsensi = allAbsensiAll[promotorTerpilih] || {};
   } else if (!isAdminRole) {
@@ -1643,7 +1709,35 @@ function gantiPromotorAdmin(keyPromotor) {
     showToast("Data promotor tidak ditemukan.", "error");
     return;
   }
-  allAbsensi = (allAbsensiAll && allAbsensiAll[keyPromotor]) ? allAbsensiAll[keyPromotor] : {};
+
+  let absData = null;
+  if (allAbsensiAll && allAbsensiAll[keyPromotor]) {
+    absData = allAbsensiAll[keyPromotor];
+  } else if (allAbsensiAll) {
+    const kandidat = [
+      dataPromotor.namaAbsen,
+      dataPromotor.namaFinger,
+      dataPromotor.namaSales
+    ].filter(Boolean).map(s => String(s).trim().toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_'));
+    
+    for (const k of kandidat) {
+      if (allAbsensiAll[k]) { absData = allAbsensiAll[k]; break; }
+    }
+    if (!absData) {
+      const target = String(dataPromotor.namaAbsen || '').toUpperCase();
+      for (const k of Object.keys(allAbsensiAll)) {
+        if (k.toUpperCase().includes(target) || target.includes(k.toUpperCase())) {
+          absData = allAbsensiAll[k]; break;
+        }
+      }
+    }
+  }
+  allAbsensi = absData || {};
+  
+  if (Object.keys(allAbsensi).length === 0) {
+    showToast('⚠️ Data absensi tidak ditemukan', 'error');
+  }
+
   if (currentMenu) {
     tampilkanDetail(currentMenu);
   } else {
@@ -1666,11 +1760,11 @@ async function refreshSemuaData(btn) {
   btn.innerHTML = 'Memuat...';
   btn.disabled = true;
   try {
-    sessionStorage.removeItem('ufo_penjualan_2026-10_all');
-    sessionStorage.removeItem('ufo_absensi_2026-10');
+    sessionStorage.removeItem('ufo_penjualan_' + BULAN_AKTIF + '_all');
+    sessionStorage.removeItem('ufo_absensi_' + BULAN_AKTIF);
     if (currentUser.key) {
-      sessionStorage.removeItem('ufo_penjualan_2026-10_' + currentUser.key);
-      sessionStorage.removeItem('ufo_absensi_2026-10_' + currentUser.key);
+      sessionStorage.removeItem('ufo_penjualan_' + BULAN_AKTIF + '_' + currentUser.key);
+      sessionStorage.removeItem('ufo_absensi_' + BULAN_AKTIF + '_' + currentUser.key);
     }
     sessionStorage.removeItem('ufo_promotor_list');
     
@@ -1743,7 +1837,6 @@ function kembaliKeMenu() {
   document.getElementById('detailView').innerHTML = '';
   document.getElementById('menuGrid').classList.remove('hidden');
   
-  // PASTIKAN DROPDOWN SELALU SEMBUNYI SAAT KEMBALI KE MENU
   document.getElementById('promotorSelector').classList.add('hidden');
   
   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1794,7 +1887,6 @@ async function tampilkanDetail(menuKey, isRealtimeUpdate = false) {
   };
   const t = titles[menuKey] || { title: 'Detail', subtitle: '' };
 
-  // JIKA INI BUKAN UPDATE REALTIME (BARU DIKLIK), KOSONGKAN DULU
   if (!isRealtimeUpdate) {
     detailEl.innerHTML = `
       <div class="back-bar">
@@ -1806,7 +1898,6 @@ async function tampilkanDetail(menuKey, isRealtimeUpdate = false) {
     `;
   }
 
-  // AMBIL DATA DARI MEMORI (CACHE) ATAU SERVER
   let content = '';
   if (menuKey === 'absensi') content = renderAbsensi();
   else if (menuKey === 'penjualan') content = renderPenjualan();
@@ -1816,13 +1907,11 @@ async function tampilkanDetail(menuKey, isRealtimeUpdate = false) {
   else if (menuKey === 'denda') content = renderDenda();
   else if (menuKey === 'promo' || menuKey === 'sop') {
     
-    // Paksa ambil data paling baru di latar belakang (TANPA menahan layar)
     window.dbGet(window.dbRef(window.db, 'info')).then(snap => {
       if (snap.exists()) {
         const data = snap.val();
         infoData.promo = data.promo || [];
         infoData.rules = data.rules || [];
-        // Jika datanya beda dengan yang di layar, gambar ulang
         if (currentMenu === 'promo' || currentMenu === 'sop') {
           const newContent = menuKey === 'promo' ? renderInfoList(infoData.promo, 'promo') : renderInfoList(infoData.rules, 'rules');
           const container = detailEl.querySelector('.content-wrap');
@@ -1831,12 +1920,10 @@ async function tampilkanDetail(menuKey, isRealtimeUpdate = false) {
       }
     }).catch(err => console.error(err));
 
-    // Tampilkan data yang ada di memori saat ini (instan)
     if (menuKey === 'promo') content = renderInfoList(infoData.promo, 'promo');
     else content = renderInfoList(infoData.rules, 'rules');
   }
 
-  // RENDER LAYAR AKHIR
   detailEl.innerHTML = `
     <div class="back-bar">
       <button class="back-btn" onclick="kembaliKeMenu()">${ICONS.back} Kembali ke Menu</button>
@@ -1849,6 +1936,7 @@ async function tampilkanDetail(menuKey, isRealtimeUpdate = false) {
   if (!isRealtimeUpdate) window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 window.tampilkanDetail = tampilkanDetail;
+
 /* ===== HELPER ===== */
 function tanggalKeNama(tglStr) {
   if (!tglStr) return '-';
@@ -1874,15 +1962,12 @@ function getPeriodeRentangDinamis() {
   const semuaPenjualan = typeof allPenjualan !== 'undefined' ? allPenjualan : [];
   const today = new Date();
   
-  // Tanggal 1 di bulan berjalan
   const tglAwal = `1 ${['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'][today.getMonth()]} ${today.getFullYear()}`;
   
-  // Jika belum ada data penjualan sama sekali
   if (semuaPenjualan.length === 0) {
     return { pertama: tglAwal, terakhir: '-' };
   }
   
-  // Cari tanggal paling akhir dari data yang di-upload admin
   const tglValid = semuaPenjualan.map(x => x.tanggal).filter(Boolean).sort((a, b) => {
     const da = parseTanggal(a), db = parseTanggal(b);
     return (da || 0) - (db || 0);
@@ -1938,11 +2023,18 @@ function renderAbsensi() {
   } else if (allAbsensi) {
     dataP = allAbsensi;
   }
-  Object.values(dataP).forEach(item => {
-    if (item && typeof item === 'object' && (item.hari || item.masuk || item.pulang)) {
-      entries.push(item);
+
+  Object.keys(dataP).forEach(k => {
+    const item = dataP[k];
+    if (!item || typeof item !== 'object') return;
+    let hari = item.hari;
+    if (!hari && /^\d+$/.test(k)) hari = parseInt(k);
+    if (!hari && /^hari_(\d+)$/.test(k)) hari = parseInt(k.replace('hari_', ''));
+    if (item.masuk || item.pulang || hari) {
+      entries.push({ ...item, hari: hari || item.hari });
     }
   });
+
   entries.sort((a, b) => (Number(a.hari) || 0) - (Number(b.hari) || 0));
   if (entries.length === 0) {
     return `<div class="empty-state">${ICONS.empty}<div class="pesan">Belum ada data absensi untuk promotor ini</div></div>`;
@@ -1982,7 +2074,8 @@ function renderAbsensi() {
     let tglAbsenStr = String(x.hari || '').trim();
     if (!tglAbsenStr.includes('/') && !tglAbsenStr.includes('-')) {
         const hariAngka = tglAbsenStr.padStart(2, '0');
-        tglAbsenStr = `10/${hariAngka}/2026`;
+        const [thn, bln] = BULAN_AKTIF.split('-');
+        tglAbsenStr = `${bln}/${hariAngka}/${thn}`;
     }
     const formatTglFinal = tanggalKeNama(tglAbsenStr);
     const kelasTambahan = isTerlambat ? 'late' : '';
@@ -2076,16 +2169,18 @@ function renderUC() {
       return `<div class="empty-state">${ICONS.empty}<div class="pesan">Silakan pilih promotor terlebih dahulu dari menu di atas</div></div>`;
     }
     const listAll = getDataSaya();
+    const [thnAktif, blnAktif] = BULAN_AKTIF.split('-');
+    const kodeFaktur = thnAktif.slice(-2) + blnAktif;
     const list = listAll.filter(x => {
         if (!x) return false;
         const tgl = String(x.tanggal || '');
         const noFaktur = String(x.nomorFaktur || x.noFaktur || '').toUpperCase();
         const kat = String(x.kategori || '').trim().toUpperCase();
         const namaBrd = String(x.namaBarang || '').trim().toUpperCase();
-        const isOktoberFaktur = noFaktur.includes('2610');
-        const isOktoberTgl = tgl.includes('/10/2026') || tgl.includes('2026-10');
+        const isBulanAktifFaktur = noFaktur.includes(kodeFaktur);
+        const isBulanAktifTgl = tgl.includes('/' + blnAktif + '/' + thnAktif) || tgl.includes(BULAN_AKTIF);
         const isMurniUC = (kat === 'GARANSI') && namaBrd.includes('UFO CARE');
-        return (isOktoberFaktur || isOktoberTgl) && isMurniUC;
+        return (isBulanAktifFaktur || isBulanAktifTgl) && isMurniUC;
     });
     let totalUC = 0;
     list.forEach(x => { totalUC += Number(x.qty || 1); });
@@ -2126,6 +2221,8 @@ function renderBrand() {
     const listAll = getDataSaya();
     const dataProm = getPromotorTerpilih();
     const brandPromotor = dataProm && dataProm.merk ? String(dataProm.merk).trim().toUpperCase() : "";
+    const [thnAktif, blnAktif] = BULAN_AKTIF.split('-');
+    const kodeFaktur = thnAktif.slice(-2) + blnAktif;
     const list = listAll.filter(x => {
         if (!x) return false;
         const tgl = String(x.tanggal || '');
@@ -2133,10 +2230,10 @@ function renderBrand() {
         const merkBarang = String(x.merk || '').trim().toUpperCase();
         const kat = String(x.kategori || '').trim().toUpperCase();
         if (kat === 'GARANSI' || kat === 'ONGKOS') return false;
-        const isOktoberFaktur = noFaktur.includes('2610');
-        const isOktoberTgl = tgl.includes('/10/2026') || tgl.includes('2026-10');
+        const isBulanAktifFaktur = noFaktur.includes(kodeFaktur);
+        const isBulanAktifTgl = tgl.includes('/' + blnAktif + '/' + thnAktif) || tgl.includes(BULAN_AKTIF);
         const isMatchBrand = !brandPromotor || (merkBarang === brandPromotor || merkBarang.includes(brandPromotor));
-        return (isOktoberFaktur || isOktoberTgl) && isMatchBrand;
+        return (isBulanAktifFaktur || isBulanAktifTgl) && isMatchBrand;
     });
     let totalBrandQty = 0, totalOmzetBrand = 0;
     list.forEach(x => {
@@ -2220,11 +2317,9 @@ function renderInfoList(arr, jenis) {
       const judul = escapeHtml((x.judul || '-').trim());
       const periode = escapeHtml((x.periode || '').trim());
       
-      // Ambil detail dan pecah berdasarkan Enter (newline)
       const rawDetail = (x.detail || '').trim();
       const detailArray = rawDetail.split('\n').filter(t => t.trim() !== '');
 
-      // Buat list poin-poin (bullet) agar rapi
       let detailHtml = '';
       if (detailArray.length > 0) {
         detailHtml = `
@@ -2277,7 +2372,6 @@ function renderInfoList(arr, jenis) {
       const judul = escapeHtml((x.poin || x.judul || '-').trim());
       const gambarUrl = safeImageUrl(x.gambar || x.url || x.image || '');
       
-      // Desain Thumbnail Modern
       const thumbnailHtml = gambarUrl ? `
         <div style="
           width: 65px; 
@@ -2303,7 +2397,7 @@ function renderInfoList(arr, jenis) {
           background: rgba(17, 24, 39, 0.6); 
           backdrop-filter: blur(10px);
           border: 1px solid rgba(255, 255, 255, 0.05);
-          border-left: 3px solid #38bdf8; /* Aksen biru modern */
+          border-left: 3px solid #38bdf8;
           border-radius: 16px; 
           padding: 16px; 
           margin-bottom: 12px;
@@ -2324,7 +2418,6 @@ function renderInfoList(arr, jenis) {
           <div style="flex: 1; min-width: 0;">
             <div style="font-size: 14.5px; color: #f3f4f6; font-weight: 700; margin-bottom: 4px; display: flex; align-items: center; gap: 8px;">
               
-              <!-- SVG Icon Dokumen Modern -->
               <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#38bdf8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
                 <polyline points="14 2 14 8 20 8"></polyline>
@@ -2424,8 +2517,6 @@ function bukaModalSOP(urlGambar, judulSop) {
   document.body.appendChild(modalDiv);
 }
 window.bukaModalSOP = bukaModalSOP;
-
-/* ===== RENDER: PEROLEHAN (ADMIN) ===== */
 
 /* ===== RENDER: PEROLEHAN (ADMIN) ===== */
 function renderPerolehan() {
@@ -2757,7 +2848,6 @@ function logoutPromotor() {
   document.getElementById('logoutCancelBtn').onclick = closeModal;
   document.getElementById('logoutConfirmBtn').onclick = async () => {
     closeModal();
-    // Bersihkan cache agar user lain di device sama tidak lihat data lama
     try { sessionStorage.clear(); } catch(e) {}
     try {
       await window.firebaseSignOut(window.firebaseAuth);
