@@ -1872,18 +1872,30 @@ function getDataSaya() {
         ? promotorTerpilih 
         : currentUser.key;
     const dataP = allPromotor[targetKey] || currentUser;
-    const namaAbsenUser = String(dataP.namaAbsen || '').trim().toUpperCase();
+    
+    // Paksa ambil nama sales dari data promotor
     const namaSalesUser = String(dataP.namaSales || '').trim().toUpperCase();
+    const namaAbsenUser = String(dataP.namaAbsen || '').trim().toUpperCase();
+    
     const semuaPenjualan = typeof allPenjualan !== 'undefined' ? allPenjualan : []; 
+    
+    // LOGIKA BARU: Ambil SEMUA data penjualan, jangan difilter dulu
+    // (Untuk mengetes apakah datanya benar-benar ada di memori)
+    console.log("Total data penjualan yang ditarik:", semuaPenjualan.length);
+    console.log("Nama Sales Promotor:", namaSalesUser);
+    console.log("Nama Absen Promotor:", namaAbsenUser);
+
     return semuaPenjualan.filter(x => {
         if (!x) return false;
         const salesTrans = String(x.namaSales || '').trim().toUpperCase();
-        const isMatch = (namaSalesUser && salesTrans === namaSalesUser) || 
-                        (namaAbsenUser && (salesTrans.includes(namaAbsenUser) || namaAbsenUser.includes(salesTrans)));
-        return isMatch;
+        
+        // Filter longgar: jika nama sales transaksi MENGANDUNG nama promotor, atau sebaliknya
+        const matchSales = namaSalesUser && (salesTrans.includes(namaSalesUser) || namaSalesUser.includes(salesTrans));
+        const matchAbsen = namaAbsenUser && (salesTrans.includes(namaAbsenUser) || namaAbsenUser.includes(salesTrans));
+        
+        return matchSales || matchAbsen;
     });
 }
-
 function getPromotorTerpilih() {
     const targetKey = (currentUser.role === 'ADMIN' && promotorTerpilih) 
         ? promotorTerpilih 
