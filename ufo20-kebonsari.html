@@ -721,24 +721,42 @@ function handleFileFinger(e) {
       let promotorCount = 0, hariCount = 0, skipList = [];
       const bulanIni = getNamaBulanIndo(BULAN_INI);
       
-      for (let i = 0; i < rows.length; i++) {
-        const row = rows[i];
-        if (!row || !row[0]) continue;
-        const m = String(row[0]).match(/Nama:(\S+)/);
-        if (!m) continue;
-        let namaFinger = m[1].trim();
+             let namaFinger = m[1].trim();
         const cleanKey = sanitizeKey(namaFinger);
         let foundKey = null, foundPromotor = null;
-        if (allPromotor[cleanKey]) { foundKey = cleanKey; foundPromotor = allPromotor[cleanKey]; }
-        else {
+        const upperFinger = namaFinger.toUpperCase();
+
+        // 1. Coba cocokkan langsung dengan Key (jika namaAbsen sama persis dengan nama finger)
+        if (allPromotor[cleanKey]) { 
+          foundKey = cleanKey; 
+          foundPromotor = allPromotor[cleanKey]; 
+        } else {
+          // 2. Cari berdasarkan field namaFinger, namaAbsen, atau namaSales
           for (const k of Object.keys(allPromotor)) {
             const p = allPromotor[k];
-            if (p.namaAbsen && String(p.namaAbsen).toUpperCase().includes(namaFinger.toUpperCase())) {
-              foundKey = k; foundPromotor = p; break;
+            const uFinger = String(p.namaFinger || p.namaAbsen || '').toUpperCase();
+            const uAbsen  = String(p.namaAbsen  || '').toUpperCase();
+            const uSales  = String(p.namaSales  || '').toUpperCase();
+            
+            // Cocokkan jika sama persis, atau mengandung string yang sama
+            if (
+              uFinger === upperFinger || 
+              uAbsen === upperFinger || 
+              uSales === upperFinger ||
+              (uFinger.length > 2 && (upperFinger.includes(uFinger) || uFinger.includes(upperFinger)))
+            ) {
+              foundKey = k; 
+              foundPromotor = p; 
+              break;
             }
           }
         }
-        if (!foundKey) { if (skipList.indexOf(namaFinger) === -1) skipList.push(namaFinger); continue; }
+        
+        // Jika tetap tidak ketemu, masukkan ke skipList
+        if (!foundKey) { 
+          if (skipList.indexOf(namaFinger) === -1) skipList.push(namaFinger); 
+          continue; 
+        }
         const dateRow = rows[i + 1], jamRow = rows[i + 2];
         if (!dateRow || !jamRow) continue;
         if (!absensiData[foundKey]) absensiData[foundKey] = {};
@@ -1050,16 +1068,21 @@ function renderPromotor() {
   return `
     <div class="card">
       <h3><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Tambah Promotor Baru</h3>
-      <p>Daftarkan promotor baru secara manual. (Pastikan nama sesuai dengan Sales ID & Finger).</p>
+      <p>Daftarkan promotor baru secara manual. Pastikan <b>Nama Finger</b> sama persis dengan yang ada di Excel mesin finger.</p>
       
       <div class="form-grid">
         <div>
-          <label>Nama Absen (Finger)</label>
+          <label>Nama Tampilan Dashboard</label>
           <input type="text" id="p_namaAbsen" placeholder="Contoh: RONI">
         </div>
         <div>
+          <label>Nama di Mesin Finger (Penting!)</label>
+          <input type="text" id="p_namaFinger" placeholder="Contoh: RONI_MLG">
+          <p style="font-size:10px; color:#64748b; margin-top:4px;">Kosongkan jika sama dengan Nama Tampilan.</p>
+        </div>
+        <div>
           <label>Nama Sales ID</label>
-          <input type="text" id="p_namaSales" placeholder="Contoh: ronimlg ">
+          <input type="text" id="p_namaSales" placeholder="Contoh: ronimlg">
         </div>
         <div>
           <label>Merk / Brand</label>
@@ -1069,11 +1092,11 @@ function renderPromotor() {
           <label>Target UC</label>
           <input type="number" id="p_targetUC" placeholder="16" value="16">
         </div>
-        <div style="grid-column: 1 / -1;">
+        <div>
           <label>Ikut Target UC?</label>
           <select id="p_ikutUC">
-            <option value="YA">YA (Akan kena denda jika tidak tercapai)</option>
-            <option value="TIDAK">TIDAK (Kebal denda UC)</option>
+            <option value="YA">YA (Kena denda jika tidak tercapai)</option>
+            <option value="TIDAK">TIDAK (Bebas denda UC)</option>
           </select>
         </div>
       </div>
@@ -1090,7 +1113,9 @@ function renderPromotor() {
           <div class="kiri">
             <div class="nama">${p.namaAbsen}</div>
             <div class="detail">
-              <b>${p.namaSales}</b> • ${p.merk || '-'} • Target UC: ${p.targetUC} 
+              <b>Sales: ${p.namaSales}</b> <br>
+              Finger: <span style="background:#eff6ff; color:#1e40af; padding:2px 6px; border-radius:4px; font-family:monospace;">${p.namaFinger || p.namaAbsen}</span><br>
+              ${p.merk || '-'} • Target UC: ${p.targetUC} 
               <span style="color:${p.ikutUC === 'YA' ? '#10b981' : '#ef4444'}; font-weight:700;">
                 (${p.ikutUC === 'YA' ? 'Ikut UC' : 'Bebas Denda UC'})
               </span>
@@ -1105,21 +1130,37 @@ function renderPromotor() {
 
 async function tambahPromotor() {
   const namaAbsen = document.getElementById('p_namaAbsen').value.trim();
+  const namaFinger = document.getElementById('p_namaFinger').value.trim() || namaAbsen; // Jika kosong, pakai nama absen
   const namaSales = document.getElementById('p_namaSales').value.trim();
- 
   const merk = document.getElementById('p_merk').value.trim();
   const targetUC = Number(document.getElementById('p_targetUC').value) || 16;
   const ikutUC = document.getElementById('p_ikutUC').value;
   const msg = document.getElementById('promotorMsg');
-    if (!namaAbsen || !namaSales) { msg.innerHTML = '<div class="alert err">Nama Absen & Nama Sales wajib diisi!</div>'; return; }
-  try {
-    await window.dbSet(window.dbRef(window.db, 'users/promotor/' + sanitizeKey(namaAbsen)), { namaAbsen, namaSales, merk, targetUC, ikutUC, aktif: true });
-    msg.innerHTML = '<div class="alert ok">✅ Promotor ditambahkan</div>';
-    ['p_namaAbsen','p_namaSales','p_pin','p_merk'].forEach(id => document.getElementById(id).value = '');
-    setTimeout(() => msg.innerHTML = '', 3000);
-  } catch (err) { msg.innerHTML = `<div class="alert err">❌ ${err.message}</div>`; }
-}
+  
+  if (!namaAbsen || !namaSales) { 
+    msg.innerHTML = '<div class="alert err">Nama Tampilan & Nama Sales wajib diisi!</div>'; 
+    return; 
+  }
 
+  try {
+    // Simpan dengan key berdasarkan namaAbsen
+    await window.dbSet(window.dbRef(window.db, 'users/promotor/' + sanitizeKey(namaAbsen)), { 
+      namaAbsen, 
+      namaFinger, // Simpan nama finger
+      namaSales, 
+      merk, 
+      targetUC, 
+      ikutUC, 
+      aktif: true 
+    });
+    
+    msg.innerHTML = '<div class="alert ok">✅ Promotor ditambahkan!</div>';
+    ['p_namaAbsen','p_namaFinger','p_namaSales','p_merk'].forEach(id => document.getElementById(id).value = '');
+    setTimeout(() => msg.innerHTML = '', 3000);
+  } catch (err) { 
+    msg.innerHTML = `<div class="alert err">❌ ${err.message}</div>`; 
+  }
+}
 async function hapusPromotor(key, nama) {
   tampilkanKonfirmasi('Hapus Promotor?', `Yakin hapus "${nama}"?`, async () => {
     await window.dbRemove(window.dbRef(window.db, 'users/promotor/' + key));
