@@ -4,14 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Admin — UFO Kebonsari</title>
-  <script>
+<script>
   document.addEventListener('contextmenu', event => event.preventDefault());
   document.onkeydown = function(e) {
-    if (e.keyCode == 123) { return false; } // F12
-    if (e.ctrlKey && e.shiftKey && e.keyCode == 'I'.charCodeAt(0)) { return false; } // Ctrl+Shift+I
-    if (e.ctrlKey && e.shiftKey && e.keyCode == 'C'.charCodeAt(0)) { return false; } // Ctrl+Shift+C
-    if (e.ctrlKey && e.shiftKey && e.keyCode == 'J'.charCodeAt(0)) { return false; } // Ctrl+Shift+J
-    if (e.ctrlKey && e.keyCode == 'U'.charCodeAt(0)) { return false; } // Ctrl+U
+    if (e.keyCode == 123) { return false; }
+    if (e.ctrlKey && e.shiftKey && e.keyCode == 'I'.charCodeAt(0)) { return false; }
+    if (e.ctrlKey && e.shiftKey && e.keyCode == 'C'.charCodeAt(0)) { return false; }
+    if (e.ctrlKey && e.shiftKey && e.keyCode == 'J'.charCodeAt(0)) { return false; }
+    if (e.ctrlKey && e.keyCode == 'U'.charCodeAt(0)) { return false; }
   }
 </script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -36,7 +36,6 @@ const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const auth = getAuth(app);
 
-// Ekspos fungsi ke global agar bisa dipakai di script bawah
 window.db = db; window.dbRef = ref; window.dbSet = set; window.dbGet = get;
 window.dbUpdate = update; window.dbRemove = remove; window.dbOnValue = onValue;
 window.dbPush = push;
@@ -45,7 +44,6 @@ window.firebaseSignInWithPopup = signInWithPopup;
 window.firebaseGoogleAuthProvider = GoogleAuthProvider;
 window.firebaseSignOut = signOut;
 
-// Cek status login secara otomatis
 onAuthStateChanged(auth, async (user) => {
   if (user && user.email) {
     const emailKey = user.email.replace(/\./g, ',');
@@ -392,7 +390,7 @@ let allPromo = [];
 let allRules = [];
 let allWhitelist = {};
 let _sopImageData = null;
-const BULAN_INI = getBulanIni();
+let BULAN_INI = getBulanIni(); // akan diupdate dari config
 
 function cariPromotorKey(namaSales) {
   const s = String(namaSales || '').trim().toUpperCase();
@@ -412,16 +410,53 @@ function cariPromotorKey(namaSales) {
   return null;
 }
 
+/* ===== DETEKSI BULAN DARI FILE ===== */
+function deteksiBulanDariPenjualan(dataPenjualan) {
+  const hitung = {};
+  dataPenjualan.forEach(item => {
+    const tgl = String(item.tanggal || '').trim();
+    // Format DD/MM/YYYY
+    const m = tgl.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    if (m) {
+      const key = `${m[3]}-${String(m[2]).padStart(2, '0')}`;
+      hitung[key] = (hitung[key] || 0) + 1;
+    }
+  });
+  let terbaik = null, max = 0;
+  Object.keys(hitung).forEach(k => {
+    if (hitung[k] > max) { max = hitung[k]; terbaik = k; }
+  });
+  return terbaik;
+}
+
+function deteksiBulanDariFinger(rows) {
+  // Cari baris pertama: "2026:10/1-10/10 Laporan Clock"
+  for (let i = 0; i < Math.min(10, rows.length); i++) {
+    const m = String(rows[i][0] || '').match(/(\d{4}):(\d{2})\//);
+    if (m) {
+      return `${m[1]}-${m[2]}`;
+    }
+  }
+  return null;
+}
+
 /* ===== FIREBASE READY ===== */
 window.addEventListener('firebase-ready', async () => {
-  document.getElementById('badgeBulan').classList.remove('hidden');
-  document.getElementById('badgeBulan').innerHTML = '<svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:currentColor;stroke-width:2.5;fill:none;display:inline-block;vertical-align:middle;margin-right:6px;"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> ' + getNamaBulanIndo(BULAN_INI);
   if (window.adminUser) {
     document.getElementById('loginBox').classList.add('hidden');
     document.getElementById('panelAdmin').classList.remove('hidden');
     document.getElementById('headerUser').classList.remove('hidden');
     document.getElementById('btnLogoutHeader').classList.remove('hidden');
     document.getElementById('headerUser').innerHTML = `👑 ${window.adminUser.nama}`;
+    
+    // Baca bulan aktif dari config
+    window.dbOnValue(window.dbRef(window.db, 'config/bulanAktif'), snap => {
+      const bulanAktif = snap.exists() ? snap.val() : getBulanIni();
+      BULAN_INI = bulanAktif;
+      document.getElementById('badgeBulan').classList.remove('hidden');
+      document.getElementById('badgeBulan').innerHTML = '<svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:currentColor;stroke-width:2.5;fill:none;display:inline-block;vertical-align:middle;margin-right:6px;"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> ' + getNamaBulanIndo(bulanAktif);
+    });
+    
     mulaiAdmin();
     setTimeout(cekDanTawarkanResetBulan, 1500);
   } else {
@@ -603,7 +638,7 @@ function renderDash() {
 /* ===== UPLOAD ===== */
 function renderUpload() {
   return `
-    <div class="alert warn">📅 Semua upload akan masuk ke folder bulan: <b>${BULAN_INI}</b> (${getNamaBulanIndo(BULAN_INI)})</div>
+    <div class="alert warn">📅 Semua upload akan <b>otomatis dideteksi bulannya</b> dari isi file. Pastikan file Excel sesuai.</div>
     <div class="card">
       <h3><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> 1. Upload File Finger</h3>
       <p>Upload file absen dari mesin finger (sheet <b>Punch</b> atau <b>RAW</b>).</p>
@@ -647,11 +682,13 @@ function renderUpload() {
   `;
 }
 
+/* ===== HANDLE FINGER (DETEKSI BULAN OTOMATIS) ===== */
 function handleFileFinger(e) {
   const file = e.target.files[0];
   if (!file) return;
   const el = document.getElementById('fingerInfo');
   el.innerHTML = '<div class="alert warn"><span class="spinner spinner-dark"></span> Membaca...</div>';
+  
   const reader = new FileReader();
   reader.onload = async (evt) => {
     try {
@@ -661,109 +698,158 @@ function handleFileFinger(e) {
       const sheet = wb.Sheets[sheetName];
       if (!sheet) { el.innerHTML = '<div class="alert err">❌ Sheet tidak ditemukan!</div>'; return; }
 
-      el.innerHTML = '<div class="alert warn"><span class="spinner spinner-dark"></span> Memuat Mapping Nama...</div>';
-      const snapMapping = await window.dbGet(window.dbRef(window.db, 'data/mappingNama'));
-      const mappingNama = snapMapping.exists() ? snapMapping.val() : {};
-
       const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
-      const absensiData = {};
-      let promotorCount = 0, hariCount = 0;
-      let skipList = [];
-      const bulanIni = getNamaBulanIndo(BULAN_INI);
-
-      for (let i = 0; i < rows.length; i++) {
-        const row = rows[i];
-        if (!row || !row[0]) continue;
-        const m = String(row[0]).match(/Nama:(\S+)/);
-        if (!m) continue;
-        
-        let namaFinger = m[1].trim();
-        let namaAbsenTarget = namaFinger.toUpperCase();
-        if (mappingNama[namaFinger.toUpperCase()]) {
-          namaAbsenTarget = mappingNama[namaFinger.toUpperCase()];
-        }
-
-        const cleanKey = sanitizeKey(namaAbsenTarget);
-        let foundKey = null, foundPromotor = null;
-        
-        if (allPromotor[cleanKey]) { 
-          foundKey = cleanKey; 
-          foundPromotor = allPromotor[cleanKey]; 
-        } else {
-          for (const k of Object.keys(allPromotor)) {
-            const p = allPromotor[k];
-            const uFinger = String(p.namaFinger || p.namaAbsen || '').toUpperCase();
-            const uAbsen  = String(p.namaAbsen  || '').toUpperCase();
-            const uSales  = String(p.namaSales  || '').toUpperCase();
-            
-            if (
-              uFinger === namaAbsenTarget || 
-              uAbsen === namaAbsenTarget || 
-              uSales === namaAbsenTarget ||
-              (uFinger.length > 2 && (namaAbsenTarget.includes(uFinger) || uFinger.includes(namaAbsenTarget)))
-            ) {
-              foundKey = k; 
-              foundPromotor = p; 
-              break;
-            }
-          }
-        }
-        
-        if (!foundKey) { 
-          if (skipList.indexOf(namaFinger) === -1) skipList.push(namaFinger); 
-          continue; 
-        }
-        
-        const dateRow = rows[i + 1], jamRow = rows[i + 2];
-        if (!dateRow || !jamRow) continue;
-        if (!absensiData[foundKey]) absensiData[foundKey] = {};
-        promotorCount++;
-        
-        for (let col = 1; col < Math.max(dateRow.length, jamRow.length); col++) {
-          const hariNum = parseInt(dateRow[col]) || 0;
-          const jamStr = String(jamRow[col] || '').trim();
-          if (hariNum < 1 || hariNum > 31 || !jamStr) continue;
-          const jamParts = jamStr.split(/\s+/).filter(j => j.includes(':'));
-          let masuk='', ist1='', kem1='', ist2='', kem2='', pulang='';
-          switch(jamParts.length) {
-            case 1: masuk=jamParts[0]; break;
-            case 2: masuk=jamParts[0]; pulang=jamParts[1]; break;
-            case 3: masuk=jamParts[0]; ist1=jamParts[1]; pulang=jamParts[2]; break;
-            case 4: masuk=jamParts[0]; ist1=jamParts[1]; kem1=jamParts[2]; pulang=jamParts[3]; break;
-            case 5: masuk=jamParts[0]; ist1=jamParts[1]; kem1=jamParts[2]; ist2=jamParts[3]; pulang=jamParts[4]; break;
-            default: masuk=jamParts[0]||''; ist1=jamParts[1]||''; kem1=jamParts[2]||''; ist2=jamParts[3]||''; kem2=jamParts[4]||''; pulang=jamParts[5]||'';
-          }
-          absensiData[foundKey]['hari_' + hariNum] = {
-            nama: foundPromotor.namaAbsen, hari: hariNum,
-            masuk, istirahat1: ist1, kembali1: kem1, istirahat2: ist2, kembali2: kem2, pulang,
-            terlambat: '', bulan: bulanIni
-          };
-          hariCount++;
-        }
-      }
       
-      if (promotorCount === 0) {
-        el.innerHTML = `<div class="alert err">❌ Tidak ada promotor cocok!<br>Nama di file: ${skipList.slice(0,5).join(', ')}</div>`;
+      // ── DETEKSI BULAN ──
+      const bulanTerdeteksi = deteksiBulanDariFinger(rows);
+      if (!bulanTerdeteksi) {
+        // Fallback: minta admin pilih bulan
+        const bulanSekarang = getBulanIni();
+        const daftarBulan = [];
+        const d = new Date();
+        for (let i = 0; i < 6; i++) {
+          const y = d.getFullYear();
+          const m = d.getMonth() + 1 - i;
+          const dt = new Date(y, m - 1, 1);
+          const key = dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0');
+          daftarBulan.push({ key, label: getNamaBulanIndo(key) });
+        }
+        el.innerHTML = `
+          <div class="alert warn">
+            ⚠️ Tidak bisa deteksi bulan dari file.<br>
+            Silakan pilih bulan file ini:
+          </div>
+          <select id="pilihBulanFinger" style="width:100%; padding:12px; border-radius:8px; border:1px solid #ccc; font-size:14px; margin-bottom:12px;">
+            ${daftarBulan.map(b => `<option value="${b.key}" ${b.key === bulanSekarang ? 'selected' : ''}>${b.label}</option>`).join('')}
+          </select>
+          <button class="btn-primary btn-full" onclick="prosesFileFingerDenganBulan(window._pendingFingerRows)">
+            Proses dengan bulan ini
+          </button>
+        `;
+        window._pendingFingerRows = rows;
         return;
       }
-      el.innerHTML = `
-        <div class="alert ok">✅ ${promotorCount} promotor • ${hariCount} hari
-        ${skipList.length > 0 ? `<br><small>⚠️ ${skipList.length} tidak cocok (${skipList.slice(0,3).join(', ')}...)</small>` : ''}</div>
-        <button class="btn-success btn-full" onclick="konfirmasiUploadFinger()">Konfirmasi Upload</button>
-      `;
-      window._fingerData = absensiData;
+      
+      await prosesFingerData(rows, bulanTerdeteksi);
+      
     } catch (err) { el.innerHTML = `<div class="alert err">❌ ${err.message}</div>`; }
   };
   reader.readAsArrayBuffer(file);
 }
 
-async function konfirmasiUploadFinger() {
+async function prosesFileFingerDenganBulan(rows) {
+  const bulan = document.getElementById('pilihBulanFinger').value;
+  await prosesFingerData(rows, bulan);
+}
+window.prosesFileFingerDenganBulan = prosesFileFingerDenganBulan;
+
+async function prosesFingerData(rows, bulan) {
+  const el = document.getElementById('fingerInfo');
+  el.innerHTML = `<div class="alert warn"><span class="spinner spinner-dark"></span> Memproses ke ${getNamaBulanIndo(bulan)}...</div>`;
+  
+  try {
+    const snapMapping = await window.dbGet(window.dbRef(window.db, 'data/mappingNama'));
+    const mappingNama = snapMapping.exists() ? snapMapping.val() : {};
+
+    const absensiData = {};
+    let promotorCount = 0, hariCount = 0;
+    let skipList = [];
+    const bulanNama = getNamaBulanIndo(bulan);
+
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      if (!row || !row[0]) continue;
+      const m = String(row[0]).match(/Nama:(\S+)/);
+      if (!m) continue;
+      
+      let namaFinger = m[1].trim();
+      let namaAbsenTarget = namaFinger.toUpperCase();
+      if (mappingNama[namaFinger.toUpperCase()]) {
+        namaAbsenTarget = mappingNama[namaFinger.toUpperCase()];
+      }
+
+      const cleanKey = sanitizeKey(namaAbsenTarget);
+      let foundKey = null, foundPromotor = null;
+      
+      if (allPromotor[cleanKey]) { 
+        foundKey = cleanKey; 
+        foundPromotor = allPromotor[cleanKey]; 
+      } else {
+        for (const k of Object.keys(allPromotor)) {
+          const p = allPromotor[k];
+          const uFinger = String(p.namaFinger || p.namaAbsen || '').toUpperCase();
+          const uAbsen  = String(p.namaAbsen  || '').toUpperCase();
+          const uSales  = String(p.namaSales  || '').toUpperCase();
+          
+          if (
+            uFinger === namaAbsenTarget || 
+            uAbsen === namaAbsenTarget || 
+            uSales === namaAbsenTarget ||
+            (uFinger.length > 2 && (namaAbsenTarget.includes(uFinger) || uFinger.includes(namaAbsenTarget)))
+          ) {
+            foundKey = k; 
+            foundPromotor = p; 
+            break;
+          }
+        }
+      }
+      
+      if (!foundKey) { 
+        if (skipList.indexOf(namaFinger) === -1) skipList.push(namaFinger); 
+        continue; 
+      }
+      
+      const dateRow = rows[i + 1], jamRow = rows[i + 2];
+      if (!dateRow || !jamRow) continue;
+      if (!absensiData[foundKey]) absensiData[foundKey] = {};
+      promotorCount++;
+      
+      for (let col = 1; col < Math.max(dateRow.length, jamRow.length); col++) {
+        const hariNum = parseInt(dateRow[col]) || 0;
+        const jamStr = String(jamRow[col] || '').trim();
+        if (hariNum < 1 || hariNum > 31 || !jamStr) continue;
+        const jamParts = jamStr.split(/\s+/).filter(j => j.includes(':'));
+        let masuk='', ist1='', kem1='', ist2='', kem2='', pulang='';
+        switch(jamParts.length) {
+          case 1: masuk=jamParts[0]; break;
+          case 2: masuk=jamParts[0]; pulang=jamParts[1]; break;
+          case 3: masuk=jamParts[0]; ist1=jamParts[1]; pulang=jamParts[2]; break;
+          case 4: masuk=jamParts[0]; ist1=jamParts[1]; kem1=jamParts[2]; pulang=jamParts[3]; break;
+          case 5: masuk=jamParts[0]; ist1=jamParts[1]; kem1=jamParts[2]; ist2=jamParts[3]; pulang=jamParts[4]; break;
+          default: masuk=jamParts[0]||''; ist1=jamParts[1]||''; kem1=jamParts[2]||''; ist2=jamParts[3]||''; kem2=jamParts[4]||''; pulang=jamParts[5]||'';
+        }
+        absensiData[foundKey]['hari_' + hariNum] = {
+          nama: foundPromotor.namaAbsen, hari: hariNum,
+          masuk, istirahat1: ist1, kembali1: kem1, istirahat2: ist2, kembali2: kem2, pulang,
+          terlambat: '', bulan: bulanNama
+        };
+        hariCount++;
+      }
+    }
+    
+    if (promotorCount === 0) {
+      el.innerHTML = `<div class="alert err">❌ Tidak ada promotor cocok!<br>Nama di file: ${skipList.slice(0,5).join(', ')}</div>`;
+      return;
+    }
+    
+    el.innerHTML = `
+      <div class="alert ok">✅ ${promotorCount} promotor • ${hariCount} hari
+        <br>📅 Bulan: <b>${bulanNama}</b>
+        ${skipList.length > 0 ? `<br><small>⚠️ ${skipList.length} tidak cocok (${skipList.slice(0,3).join(', ')}...)</small>` : ''}
+      </div>
+      <button class="btn-success btn-full" onclick="konfirmasiUploadFingerDenganBulan('${bulan}')">Konfirmasi Upload ke ${bulanNama}</button>
+    `;
+    window._fingerData = absensiData;
+  } catch (err) { el.innerHTML = `<div class="alert err">❌ ${err.message}</div>`; }
+}
+
+async function konfirmasiUploadFingerDenganBulan(bulan) {
   const data = window._fingerData;
   if (!data) return;
   const el = document.getElementById('fingerInfo');
   el.innerHTML = '<div class="alert warn"><span class="spinner spinner-dark"></span> Uploading...</div>';
   try {
-    const snap = await window.dbGet(window.dbRef(window.db, 'absensi/' + BULAN_INI));
+    const snap = await window.dbGet(window.dbRef(window.db, 'absensi/' + bulan));
     const existing = snap.exists() ? snap.val() : {};
     const updates = {};
     let totalHari = 0, totalUpdate = 0;
@@ -772,18 +858,155 @@ async function konfirmasiUploadFinger() {
         const nd = data[kp][hk];
         const od = existing[kp]?.[hk];
         if (od && String(od.terlambat || '').toUpperCase() === 'YA') { nd.terlambat = 'YA'; totalUpdate++; }
-        updates[`absensi/${BULAN_INI}/${kp}/${hk}`] = nd;
+        updates[`absensi/${bulan}/${kp}/${hk}`] = nd;
         totalHari++;
       });
     });
+    
+    // Update config
+    const snapConfig = await window.dbGet(window.dbRef(window.db, 'config/bulanAktif'));
+    const bulanAktifSekarang = snapConfig.exists() ? snapConfig.val() : null;
+    if (!bulanAktifSekarang || bulan > bulanAktifSekarang) {
+      updates['config/bulanAktif'] = bulan;
+    }
+    
     await window.dbUpdate(window.dbRef(window.db), updates);
-    el.innerHTML = `<div class="alert ok">✅ Berhasil! ${totalHari} hari
+    el.innerHTML = `<div class="alert ok">✅ Berhasil! ${totalHari} hari ke ${getNamaBulanIndo(bulan)}
       ${totalUpdate > 0 ? `<br><small>🔒 ${totalUpdate} flag terlambat dipertahankan</small>` : ''}</div>
       <button class="btn-soft btn-full" onclick="location.reload()">Refresh</button>`;
     window._fingerData = null;
   } catch (err) { el.innerHTML = `<div class="alert err">❌ ${err.message}</div>`; }
 }
+window.konfirmasiUploadFingerDenganBulan = konfirmasiUploadFingerDenganBulan;
 
+/* ===== HANDLE PENJUALAN (DETEKSI BULAN DARI TANGGAL FAKTUR) ===== */
+function handleFilePenjualan(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const el = document.getElementById('penjualanInfo');
+  el.innerHTML = '<div class="alert warn"><span class="spinner spinner-dark"></span> Membaca...</div>';
+  
+  const reader = new FileReader();
+  reader.onload = async (evt) => {
+    try {
+      const data = new Uint8Array(evt.target.result);
+      const wb = XLSX.read(data, { type: 'array' });
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+      
+      let hIdx = -1;
+      for (let i = 0; i < rows.length; i++) {
+        if (rows[i][0] === 'Store' && rows[i][1] === 'Nomor Faktur') { hIdx = i; break; }
+      }
+      if (hIdx === -1) { el.innerHTML = '<div class="alert err">❌ Format tidak dikenali</div>'; return; }
+      
+      const parsed = [];
+      for (let i = hIdx + 1; i < rows.length; i++) {
+        const r = rows[i];
+        if (!r || !r[1] || !r[2]) continue;
+        if (String(r[5]).trim().toUpperCase() === 'TOTAL') continue;
+        parsed.push({
+          noFaktur: String(r[1]).trim(),
+          tanggal: convertTanggalExcel(r[2]),
+          barcode: String(r[3]).trim(),
+          namaBarang: String(r[5]).trim(),
+          qty: Number(r[6]) || 0,
+          subtotal: Number(r[10]) || 0,
+          namaSales: String(r[15]).trim(),
+          kategori: String(r[17]).trim().toUpperCase(),
+          merk: String(r[18]).trim().toUpperCase()
+        });
+      }
+      
+      // ── DETEKSI BULAN ──
+      const bulanTerdeteksi = deteksiBulanDariPenjualan(parsed);
+      if (!bulanTerdeteksi) {
+        el.innerHTML = '<div class="alert err">❌ Tidak bisa deteksi bulan dari tanggal faktur.</div>';
+        return;
+      }
+      
+      const omzet = parsed.reduce((s, x) => s + x.subtotal, 0);
+      const namaBulan = getNamaBulanIndo(bulanTerdeteksi);
+      
+      el.innerHTML = `
+        <div class="alert ok">
+          ✅ ${parsed.length} baris terbaca<br>
+          📅 Bulan dari tanggal faktur: <b>${namaBulan}</b><br>
+          💰 Total omzet: <b>Rp ${omzet.toLocaleString('id-ID')}</b>
+        </div>
+        <button class="btn-success btn-full" onclick="konfirmasiUploadPenjualanDenganBulan('${bulanTerdeteksi}')">
+          Upload ke ${namaBulan}
+        </button>
+      `;
+      
+      window._jualData = parsed;
+      
+    } catch (err) { el.innerHTML = `<div class="alert err">❌ ${err.message}</div>`; }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+async function konfirmasiUploadPenjualanDenganBulan(bulan) {
+  const data = window._jualData;
+  if (!data) return;
+  const el = document.getElementById('penjualanInfo');
+  el.innerHTML = `<div class="alert warn"><span class="spinner spinner-dark"></span> Uploading ke ${getNamaBulanIndo(bulan)}...</div>`;
+  
+  try {
+    const snapAll = await window.dbGet(window.dbRef(window.db, 'penjualan/' + bulan + '/all'));
+    const setExist = new Set();
+    if (snapAll.exists()) {
+      Object.values(snapAll.val()).forEach(x => {
+        if (x && x.noFaktur && x.barcode) setExist.add(x.noFaktur + '|' + x.barcode);
+      });
+    }
+
+    const snapRoot = await window.dbGet(window.dbRef(window.db, 'penjualan/' + bulan));
+    const updates = {};
+    if (snapRoot.exists()) {
+      const rootVal = snapRoot.val();
+      Object.keys(rootVal).forEach(k => {
+        if (k === 'all' || k === 'per_promotor') return;
+        const item = rootVal[k];
+        if (item && typeof item === 'object' && item.namaSales) {
+          updates[`penjualan/${bulan}/all/${k}`] = item;
+          setExist.add((item.noFaktur || '') + '|' + (item.barcode || ''));
+        }
+      });
+    }
+
+    let cBaru = 0, cSkip = 0, cTanpaPromotor = 0;
+    data.forEach((item, idx) => {
+      const k = item.noFaktur + '|' + item.barcode;
+      if (setExist.has(k)) { cSkip++; return; }
+      const txId = `t_${Date.now()}_${idx}_${Math.random().toString(36).substr(2,6)}`;
+      updates[`penjualan/${bulan}/all/${txId}`] = item;
+      const pk = cariPromotorKey(item.namaSales);
+      if (pk) {
+        updates[`penjualan/${bulan}/per_promotor/${pk}/${txId}`] = item;
+      } else {
+        cTanpaPromotor++;
+      }
+      cBaru++;
+    });
+    
+    // Update config
+    const snapConfig = await window.dbGet(window.dbRef(window.db, 'config/bulanAktif'));
+    const bulanAktifSekarang = snapConfig.exists() ? snapConfig.val() : null;
+    if (!bulanAktifSekarang || bulan > bulanAktifSekarang) {
+      updates['config/bulanAktif'] = bulan;
+    }
+    
+    await window.dbUpdate(window.dbRef(window.db), updates);
+    el.innerHTML = `<div class="alert ok">✅ ${cBaru} transaksi baru (${cSkip} duplikat) ke ${getNamaBulanIndo(bulan)}
+      ${cTanpaPromotor > 0 ? `<br><span style="color:#d97706;">⚠️ ${cTanpaPromotor} tanpa promotor</span>` : ''}</div>
+      <button class="btn-soft btn-full" onclick="location.reload()">Selesai</button>`;
+    window._jualData = null;
+  } catch (err) { el.innerHTML = `<div class="alert err">❌ ${err.message}</div>`; }
+}
+window.konfirmasiUploadPenjualanDenganBulan = konfirmasiUploadPenjualanDenganBulan;
+
+/* ===== HANDLE MASTER (TETAP PAKAI BULAN INI, TAPI DETEKSI DARI PENJUALAN) ===== */
 function handleFileMaster(e) {
   const file = e.target.files[0];
   if (!file) return;
@@ -808,7 +1031,6 @@ function handleFileMaster(e) {
             namaAbsen: String(r[0]).trim(), 
             namaFinger: String(r[9] || r[0]).trim(),
             namaSales: String(r[1]).trim(),
-            pin: String(r[3]).trim().replace(/\.0$/, ''),
             ikutUC: String(r[6] || 'YA').trim().toUpperCase(),
             targetUC: Number(r[7]) || 16, merk: String(r[8] || '').trim(), aktif: true
           });
@@ -888,24 +1110,32 @@ async function konfirmasiUploadMaster() {
   if (!data) return;
   const el = document.getElementById('masterInfo');
   el.innerHTML = '<div class="alert warn"><span class="spinner spinner-dark"></span> Uploading...</div>';
+  
   try {
+    // Deteksi bulan dari penjualan
+    let bulanTarget = BULAN_INI;
+    if (data.penjualan.length > 0) {
+      const deteksi = deteksiBulanDariPenjualan(data.penjualan);
+      if (deteksi) bulanTarget = deteksi;
+    }
+    
     const updates = {};
     data.promotor.forEach(p => { updates['users/promotor/' + sanitizeKey(p.namaAbsen)] = p; });
 
-    const snapAll = await window.dbGet(window.dbRef(window.db, 'penjualan/' + BULAN_INI + '/all'));
+    const snapAll = await window.dbGet(window.dbRef(window.db, 'penjualan/' + bulanTarget + '/all'));
     const setExist = new Set();
     if (snapAll.exists()) {
       Object.values(snapAll.val()).forEach(x => { if (x && x.noFaktur && x.barcode) setExist.add(x.noFaktur + '|' + x.barcode); });
     }
 
-    const snapRoot = await window.dbGet(window.dbRef(window.db, 'penjualan/' + BULAN_INI));
+    const snapRoot = await window.dbGet(window.dbRef(window.db, 'penjualan/' + bulanTarget));
     if (snapRoot.exists()) {
       const rootVal = snapRoot.val();
       Object.keys(rootVal).forEach(k => {
         if (k === 'all' || k === 'per_promotor') return;
         const item = rootVal[k];
         if (item && typeof item === 'object' && item.namaSales) {
-          updates[`penjualan/${BULAN_INI}/all/${k}`] = item;
+          updates[`penjualan/${bulanTarget}/all/${k}`] = item;
           setExist.add((item.noFaktur || '') + '|' + (item.barcode || ''));
         }
       });
@@ -916,117 +1146,39 @@ async function konfirmasiUploadMaster() {
       const k = item.noFaktur + '|' + item.barcode;
       if (setExist.has(k)) { cSkip++; return; }
       const txId = `t_${Date.now()}_${idx}_${Math.random().toString(36).substr(2,6)}`;
-      updates[`penjualan/${BULAN_INI}/all/${txId}`] = item;
+      updates[`penjualan/${bulanTarget}/all/${txId}`] = item;
       const pk = cariPromotorKey(item.namaSales);
       if (pk) {
-        updates[`penjualan/${BULAN_INI}/per_promotor/${pk}/${txId}`] = item;
+        updates[`penjualan/${bulanTarget}/per_promotor/${pk}/${txId}`] = item;
       } else {
         cTanpaPromotor++;
       }
       cBaru++;
     });
+
+    // Update config
+    const snapConfig = await window.dbGet(window.dbRef(window.db, 'config/bulanAktif'));
+    const bulanAktifSekarang = snapConfig.exists() ? snapConfig.val() : null;
+    if (!bulanAktifSekarang || bulanTarget > bulanAktifSekarang) {
+      updates['config/bulanAktif'] = bulanTarget;
+    }
 
     Object.keys(data.absensi).forEach(k => {
       const absenP = data.absensi[k];
       let targetKey = k;
       let targetProm = data.promotor.find(p => sanitizeKey(p.namaFinger) === k || sanitizeKey(p.namaAbsen) === k);
       if (targetProm) targetKey = sanitizeKey(targetProm.namaAbsen);
-      if (!updates[`absensi/${BULAN_INI}/${targetKey}`]) updates[`absensi/${BULAN_INI}/${targetKey}`] = {};
-      Object.assign(updates[`absensi/${BULAN_INI}/${targetKey}`], absenP);
+      if (!updates[`absensi/${bulanTarget}/${targetKey}`]) updates[`absensi/${bulanTarget}/${targetKey}`] = {};
+      Object.assign(updates[`absensi/${bulanTarget}/${targetKey}`], absenP);
     });
     if (data.info.promo.length) updates['info/promo'] = data.info.promo;
     if (data.info.rules.length) updates['info/rules'] = data.info.rules;
+    
     await window.dbUpdate(window.dbRef(window.db), updates);
     const totalAbsensi = Object.values(data.absensi).reduce((s, o) => s + Object.keys(o).length, 0);
-    el.innerHTML = `<div class="alert ok">✅ Berhasil!<br>• ${data.promotor.length} promotor<br>• ${cBaru} transaksi baru (${cSkip} duplikat)${cTanpaPromotor > 0 ? `<br><span style="color:#d97706;">⚠️ ${cTanpaPromotor} transaksi tanpa promotor dikenali</span>` : ''}<br>• ${totalAbsensi} hari absensi</div>
+    el.innerHTML = `<div class="alert ok">✅ Berhasil ke <b>${getNamaBulanIndo(bulanTarget)}</b>!<br>• ${data.promotor.length} promotor<br>• ${cBaru} transaksi baru (${cSkip} duplikat)${cTanpaPromotor > 0 ? `<br><span style="color:#d97706;">⚠️ ${cTanpaPromotor} transaksi tanpa promotor dikenali</span>` : ''}<br>• ${totalAbsensi} hari absensi</div>
       <button class="btn-soft btn-full" onclick="location.reload()">Refresh</button>`;
     window._masterData = null;
-  } catch (err) { el.innerHTML = `<div class="alert err">❌ ${err.message}</div>`; }
-}
-
-function handleFilePenjualan(e) {
-  const file = e.target.files[0];
-  if (!file) return;
-  const el = document.getElementById('penjualanInfo');
-  el.innerHTML = '<div class="alert warn"><span class="spinner spinner-dark"></span> Membaca...</div>';
-  const reader = new FileReader();
-  reader.onload = async (evt) => {
-    try {
-      const data = new Uint8Array(evt.target.result);
-      const wb = XLSX.read(data, { type: 'array' });
-      const sheet = wb.Sheets[wb.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
-      let hIdx = -1;
-      for (let i = 0; i < rows.length; i++) {
-        if (rows[i][0] === 'Store' && rows[i][1] === 'Nomor Faktur') { hIdx = i; break; }
-      }
-      if (hIdx === -1) { el.innerHTML = '<div class="alert err">❌ Format tidak dikenali</div>'; return; }
-      const parsed = [];
-      for (let i = hIdx + 1; i < rows.length; i++) {
-        const r = rows[i];
-        if (!r || !r[1] || !r[2]) continue;
-        if (String(r[5]).trim().toUpperCase() === 'TOTAL') continue;
-        parsed.push({
-          noFaktur: String(r[1]).trim(), tanggal: convertTanggalExcel(r[2]),
-          barcode: String(r[3]).trim(), namaBarang: String(r[5]).trim(),
-          qty: Number(r[6]) || 0, subtotal: Number(r[10]) || 0,
-          namaSales: String(r[15]).trim(),
-          kategori: String(r[17]).trim().toUpperCase(),
-          merk: String(r[18]).trim().toUpperCase()
-        });
-      }
-      const omzet = parsed.reduce((s, x) => s + x.subtotal, 0);
-      el.innerHTML = `<div class="alert ok">✅ ${parsed.length} baris — Omzet: Rp ${omzet.toLocaleString('id-ID')}</div>
-        <button class="btn-success btn-full" onclick="konfirmasiUploadPenjualan()">Konfirmasi Upload</button>`;
-      window._jualData = parsed;
-    } catch (err) { el.innerHTML = `<div class="alert err">❌ ${err.message}</div>`; }
-  };
-  reader.readAsArrayBuffer(file);
-}
-
-async function konfirmasiUploadPenjualan() {
-  const data = window._jualData;
-  if (!data) return;
-  const el = document.getElementById('penjualanInfo');
-  el.innerHTML = '<div class="alert warn"><span class="spinner spinner-dark"></span> Uploading...</div>';
-  try {
-    const snapAll = await window.dbGet(window.dbRef(window.db, 'penjualan/' + BULAN_INI + '/all'));
-    const setExist = new Set();
-    if (snapAll.exists()) {
-      Object.values(snapAll.val()).forEach(x => { if (x && x.noFaktur && x.barcode) setExist.add(x.noFaktur + '|' + x.barcode); });
-    }
-
-    const snapRoot = await window.dbGet(window.dbRef(window.db, 'penjualan/' + BULAN_INI));
-    const updates = {};
-    if (snapRoot.exists()) {
-      const rootVal = snapRoot.val();
-      Object.keys(rootVal).forEach(k => {
-        if (k === 'all' || k === 'per_promotor') return;
-        const item = rootVal[k];
-        if (item && typeof item === 'object' && item.namaSales) {
-          updates[`penjualan/${BULAN_INI}/all/${k}`] = item;
-          setExist.add((item.noFaktur || '') + '|' + (item.barcode || ''));
-        }
-      });
-    }
-
-    let cBaru = 0, cSkip = 0, cTanpaPromotor = 0;
-    data.forEach((item, idx) => {
-      const k = item.noFaktur + '|' + item.barcode;
-      if (setExist.has(k)) { cSkip++; return; }
-      const txId = `t_${Date.now()}_${idx}_${Math.random().toString(36).substr(2,6)}`;
-      updates[`penjualan/${BULAN_INI}/all/${txId}`] = item;
-      const pk = cariPromotorKey(item.namaSales);
-      if (pk) {
-        updates[`penjualan/${BULAN_INI}/per_promotor/${pk}/${txId}`] = item;
-      } else {
-        cTanpaPromotor++;
-      }
-      cBaru++;
-    });
-    await window.dbUpdate(window.dbRef(window.db), updates);
-    el.innerHTML = `<div class="alert ok">✅ ${cBaru} transaksi baru (${cSkip} duplikat)${cTanpaPromotor > 0 ? `<br><span style="color:#d97706;">⚠️ ${cTanpaPromotor} tanpa promotor</span>` : ''}</div>`;
-    window._jualData = null;
   } catch (err) { el.innerHTML = `<div class="alert err">❌ ${err.message}</div>`; }
 }
 
@@ -1078,11 +1230,11 @@ async function konfirmasiUploadMapping() {
 /* ===== PROMOTOR ===== */
 function renderPromotor() {
   const listPromotor = Object.keys(allPromotor).map(k => ({ key: k, ...allPromotor[k] })).sort((a,b) => (a.namaAbsen || '').localeCompare(b.namaAbsen || ''));
- const whitelistMap = {};
-Object.keys(allWhitelist).forEach(k => {
-  const w = allWhitelist[k];
-  if (w.promotorKey) whitelistMap[w.promotorKey] = { ...w, _key: k };  // simpan key Firebase
-});
+  const whitelistMap = {};
+  Object.keys(allWhitelist).forEach(k => {
+    const w = allWhitelist[k];
+    if (w.promotorKey) whitelistMap[w.promotorKey] = { ...w, _key: k };
+  });
 
   return `
     <div class="card">
@@ -1225,11 +1377,9 @@ async function hapusPromotor(key, nama, whitelistKey) {
       const updates = {};
       updates[`users/promotor/${key}`] = null;
 
-      // Hapus whitelist berdasarkan key yang dikirim
       if (whitelistKey) {
         updates[`users/whitelist/${whitelistKey}`] = null;
       } else {
-        // Fallback: cari manual semua whitelist yang promotorKey-nya = key
         const snapWl = await window.dbGet(window.dbRef(window.db, 'users/whitelist'));
         if (snapWl.exists()) {
           const wl = snapWl.val();
@@ -1243,7 +1393,7 @@ async function hapusPromotor(key, nama, whitelistKey) {
 
       await window.dbUpdate(window.dbRef(window.db), updates);
       tampilkanNotif('Berhasil', 'Promotor dan Email dihapus.', 'success');
-      renderTab(); // refresh tampilan
+      renderTab();
     } catch (err) {
       tampilkanNotif('Gagal', err.message, 'danger');
     }
