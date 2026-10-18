@@ -72,7 +72,14 @@ onAuthStateChanged(auth, async (user) => {
     try {
       const snap = await get(ref(db, 'users/whitelist/' + emailKey));
       if (snap.exists() && snap.val().role === 'ADMIN') {
-        window.adminUser = user;
+       const wl = snap.val();
+let namaTampil = wl.nama || '';
+if (!namaTampil && wl.promotorKey) {
+  const snapM = await window.dbGet(window.dbRef(window.db, 'users/master_promotor/' + wl.promotorKey));
+  if (snapM.exists()) namaTampil = snapM.val().namaAbsen || '';
+}
+document.getElementById('headerUser').innerHTML = `👑 ${namaTampil || 'Admin'}`;
+window.adminUser = { ...user, namaTampil: namaTampil || 'Admin' };
       } else {
         showToast('Akun Anda bukan Admin!', 'error');
         await signOut(auth);
@@ -475,7 +482,7 @@ window.addEventListener('firebase-ready', async () => {
     document.getElementById('panelAdmin').classList.remove('hidden');
     document.getElementById('headerUser').classList.remove('hidden');
     document.getElementById('btnLogoutHeader').classList.remove('hidden');
-    document.getElementById('headerUser').innerHTML = `👑 ${window.adminUser.email}`;
+    document.getElementById('headerUser').innerHTML = `👑 ${window.adminUser.namaTampil || 'Admin'}`;
     mulaiAdmin();
     setTimeout(cekDanTawarkanResetBulan, 1500);
   } else {
