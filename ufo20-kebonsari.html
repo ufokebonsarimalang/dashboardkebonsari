@@ -1078,11 +1078,11 @@ async function konfirmasiUploadMapping() {
 /* ===== PROMOTOR ===== */
 function renderPromotor() {
   const listPromotor = Object.keys(allPromotor).map(k => ({ key: k, ...allPromotor[k] })).sort((a,b) => (a.namaAbsen || '').localeCompare(b.namaAbsen || ''));
-  const whitelistMap = {};
-  Object.keys(allWhitelist).forEach(k => {
-    const w = allWhitelist[k];
-    if (w.promotorKey) whitelistMap[w.promotorKey] = w;
-  });
+ const whitelistMap = {};
+Object.keys(allWhitelist).forEach(k => {
+  const w = allWhitelist[k];
+  if (w.promotorKey) whitelistMap[w.promotorKey] = { ...w, _key: k };  // simpan key Firebase
+});
 
   return `
     <div class="card">
@@ -1150,7 +1150,7 @@ function renderPromotor() {
           </div>
           <div class="kanan">
             <button class="btn-soft btn-sm" onclick="editPromotor('${p.key}')">Edit</button>
-            <button class="btn-danger btn-sm" onclick="hapusPromotor('${p.key}', '${p.namaAbsen}', '${wl.key || ''}')">Hapus</button>
+            <button class="btn-danger btn-sm" onclick="hapusPromotor('${p.key}', '${p.namaAbsen}', '${wl._key || ''}')">Hapus</button>
           </div>
         </div>`;
       }).join('')}
@@ -1221,13 +1221,32 @@ async function simpanPromotorTerpadu() {
 
 async function hapusPromotor(key, nama, whitelistKey) {
   tampilkanKonfirmasi('Hapus Promotor?', `Yakin hapus "${nama}" beserta akses emailnya?`, async () => {
-    const updates = {};
-    updates[`users/promotor/${key}`] = null;
-    if (whitelistKey) {
-      updates[`users/whitelist/${whitelistKey}`] = null;
+    try {
+      const updates = {};
+      updates[`users/promotor/${key}`] = null;
+
+      // Hapus whitelist berdasarkan key yang dikirim
+      if (whitelistKey) {
+        updates[`users/whitelist/${whitelistKey}`] = null;
+      } else {
+        // Fallback: cari manual semua whitelist yang promotorKey-nya = key
+        const snapWl = await window.dbGet(window.dbRef(window.db, 'users/whitelist'));
+        if (snapWl.exists()) {
+          const wl = snapWl.val();
+          Object.keys(wl).forEach(k => {
+            if (wl[k] && wl[k].promotorKey === key) {
+              updates[`users/whitelist/${k}`] = null;
+            }
+          });
+        }
+      }
+
+      await window.dbUpdate(window.dbRef(window.db), updates);
+      tampilkanNotif('Berhasil', 'Promotor dan Email dihapus.', 'success');
+      renderTab(); // refresh tampilan
+    } catch (err) {
+      tampilkanNotif('Gagal', err.message, 'danger');
     }
-    await window.dbUpdate(window.dbRef(window.db), updates);
-    tampilkanNotif('Berhasil', 'Promotor dan Email dihapus.', 'success');
   }, 'danger');
 }
 
