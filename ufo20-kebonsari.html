@@ -55,8 +55,11 @@ onAuthStateChanged(auth, async (user) => {
     const emailKey = user.email.replace(/\./g, ',');
     try {
       const snap = await get(ref(db, 'users/whitelist/' + emailKey));
-      if (snap.exists() && snap.val().role === 'ADMIN') {
-        window.adminUser = user;
+         if (snap.exists() && snap.val().role === 'ADMIN') {
+        window.adminUser = { 
+          email: user.email, 
+          nama: snap.val().nama || user.displayName || user.email // <-- Ambil Nama dari Database
+        };
       } else {
         showToast('Akun Anda bukan Admin!', 'error');
         await signOut(auth);
