@@ -1149,11 +1149,30 @@ function renderPromotor() {
             </div>
           </div>
           <div class="kanan">
+            <button class="btn-soft btn-sm" onclick="editPromotor('${p.key}')">Edit</button>
             <button class="btn-danger btn-sm" onclick="hapusPromotor('${p.key}', '${p.namaAbsen}', '${wl.key || ''}')">Hapus</button>
           </div>
         </div>`;
       }).join('')}
     </div>`;
+}
+
+function editPromotor(key) {
+  const p = allPromotor[key];
+  if (!p) return;
+  let email = '';
+  Object.keys(allWhitelist).forEach(k => {
+    const w = allWhitelist[k];
+    if (w.promotorKey === key) email = w.email;
+  });
+  document.getElementById('p_namaAbsen').value = p.namaAbsen || '';
+  document.getElementById('p_namaFinger').value = p.namaFinger || '';
+  document.getElementById('p_namaSales').value = p.namaSales || '';
+  document.getElementById('p_merk').value = p.merk || '';
+  document.getElementById('p_targetUC').value = p.targetUC || 16;
+  document.getElementById('p_ikutUC').value = p.ikutUC || 'YA';
+  document.getElementById('p_email').value = email;
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 async function simpanPromotorTerpadu() {
@@ -1420,6 +1439,9 @@ function renderDanger() {
     <div class="card">
       <h3 style="color:var(--danger);">⚠️ Danger Zone</h3>
       <p>Hati-hati! Data yang dihapus tidak bisa dikembalikan.</p>
+      <button class="btn-primary btn-full" style="margin-bottom:12px;" onclick="tombolSinkronPenjualan(event)">
+        🔃 Sinkron Semua Penjualan
+      </button>
       <button class="btn-warning btn-full" style="margin-bottom:12px;" onclick="downloadExcelBulanIni()">
         <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         Download Data Bulan Ini (Excel)
@@ -1430,6 +1452,58 @@ function renderDanger() {
       <button class="btn-danger btn-full" onclick="hapusSemua()">Hapus SEMUA Data</button>
     </div>
   `;
+}
+
+async function tombolSinkronPenjualan(event) {
+  const btn = event.target;
+  const originalText = btn.innerText;
+  btn.innerText = 'Memproses...';
+  btn.disabled = true;
+  
+  try {
+    const bulan = BULAN_INI;
+    const snapAll = await window.dbGet(window.dbRef(window.db, `penjualan/${bulan}/all`));
+    if (!snapAll.exists()) { alert("❌ Data penjualan 'all' kosong!"); return; }
+    
+    const allPenjualan = snapAll.val();
+    const updates = {};
+    let count = 0;
+
+    Object.keys(allPenjualan).forEach(txId => {
+      const item = allPenjualan[txId];
+      if (!item || !item.namaSales) return;
+      
+      const salesExcel = String(item.namaSales).trim().toUpperCase();
+      let foundKey = null;
+
+      for (const k of Object.keys(allPromotor)) {
+        const p = allPromotor[k];
+        const pSales = String(p.namaSales || '').trim().toUpperCase();
+        
+        if (pSales && (salesExcel.includes(pSales) || pSales.includes(salesExcel))) {
+          foundKey = k;
+          break;
+        }
+      }
+
+      if (foundKey) {
+        updates[`penjualan/${bulan}/per_promotor/${foundKey}/${txId}`] = item;
+        count++;
+      }
+    });
+
+    if (count > 0) {
+      await window.dbUpdate(window.dbRef(window.db), updates);
+      alert(`✅ BERHASIL! ${count} transaksi berhasil disinkronkan ke semua promotor.`);
+    } else {
+      alert("❌ Tidak ada transaksi yang cocok.");
+    }
+  } catch (err) {
+    alert("Error: " + err.message);
+  } finally {
+    btn.innerText = originalText;
+    btn.disabled = false;
+  }
 }
 
 /* ===== CEK BULAN BARU & TAWARKAN RESET ===== */
