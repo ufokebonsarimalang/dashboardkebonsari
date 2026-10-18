@@ -479,7 +479,7 @@ window.addEventListener('firebase-ready', async () => {
     document.getElementById('panelAdmin').classList.remove('hidden');
     document.getElementById('headerUser').classList.remove('hidden');
     document.getElementById('btnLogoutHeader').classList.remove('hidden');
-    document.getElementById('headerUser').innerHTML = `👑 ${window.adminUser.email}`;
+       document.getElementById('headerUser').innerHTML = `👑 ${window.adminUser.nama}`;
     mulaiAdmin();
     setTimeout(cekDanTawarkanResetBulan, 1500);
   } else {
@@ -508,7 +508,7 @@ async function loginAdminGoogle() {
       document.getElementById('panelAdmin').classList.remove('hidden');
       document.getElementById('headerUser').classList.remove('hidden');
       document.getElementById('btnLogoutHeader').classList.remove('hidden');
-      document.getElementById('headerUser').innerHTML = `👑 ${snap.val().nama || user.email}`;
+     document.getElementById('headerUser').innerHTML = `👑 ${snap.val().nama || user.displayName || user.email}`;
       
       mulaiAdmin();
       setTimeout(cekDanTawarkanResetBulan, 1500);
