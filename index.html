@@ -31,21 +31,13 @@ import { getDatabase, ref, get, onValue } from "https://www.gstatic.com/firebase
 import { getAuth, onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
 const firebaseConfig = {
-
   apiKey: "AIzaSyCcBuaevlaemlP2mX87gGi2JwGR29Y05as",
-
   authDomain: "dashboardkebonsari.firebaseapp.com",
-
   databaseURL: "https://dashboardkebonsari-default-rtdb.asia-southeast1.firebasedatabase.app",
-
   projectId: "dashboardkebonsari",
-
   storageBucket: "dashboardkebonsari.firebasestorage.app",
-
   messagingSenderId: "68113369328",
-
   appId: "1:68113369328:web:200be7e778bdc9104b5a35"
-
 };
 
 const app = initializeApp(firebaseConfig);
@@ -1547,9 +1539,8 @@ async function muatDataBulanIni(forceRefresh = false) {
   const isAdminRole = currentUser.role === 'ADMIN';
 
   // --- Penjualan ---
-  const pathProm = isAdminRole
-    ? 'penjualan/2026-10/all'
-    : 'penjualan/2026-10/per_promotor/' + currentUser.key;
+  // PAKSA BACA DARI 'all' AGAR DATA SELALU MUNCUL
+  const pathProm = 'penjualan/2026-10/all';
   const cacheKeyProm = isAdminRole ? 'penjualan_2026-10_all' : 'penjualan_2026-10_' + currentUser.key;
 
   let dataPenjualan = forceRefresh ? null : cacheGet(cacheKeyProm);
@@ -1561,30 +1552,6 @@ async function muatDataBulanIni(forceRefresh = false) {
         Object.values(snap.val()).forEach(item => {
           if (item && item.namaSales) allPenjualan.push(item);
         });
-      }
-      // Fallback ke root (kalau data belum dimigrasi)
-      if (allPenjualan.length === 0) {
-        const snapRoot = await window.dbGet(window.dbRef(window.db, 'penjualan/2026-10'));
-        if (snapRoot.exists()) {
-          const raw = snapRoot.val();
-          const arr = [];
-          Object.keys(raw).forEach(k => {
-            if (k === 'all' || k === 'per_promotor') return;
-            const item = raw[k];
-            if (item && item.namaSales) arr.push(item);
-          });
-          if (!isAdminRole) {
-            const dataP = allPromotor[currentUser.key] || {};
-            const ns = String(dataP.namaSales || '').trim().toUpperCase();
-            const na = String(dataP.namaAbsen || '').trim().toUpperCase();
-            allPenjualan = arr.filter(x => {
-              const xs = String(x.namaSales || '').trim().toUpperCase();
-              return (ns && xs === ns) || (na && (xs.includes(na) || na.includes(xs)));
-            });
-          } else {
-            allPenjualan = arr;
-          }
-        }
       }
       cacheSet(cacheKeyProm, allPenjualan);
     } catch (err) {
