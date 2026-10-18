@@ -1057,12 +1057,12 @@ function renderMasterPromotor() {
     .sort((a,b) => (a.namaAbsen || '').localeCompare(b.namaAbsen || ''));
   const totalAll = Object.keys(allMaster).length;
   return `
-    <div class="alert warn"><svg viewBox="0 0 24 24" style="width:18px;height:18px;stroke:currentColor;stroke-width:2.5;fill:none;flex-shrink:0;"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg> Admin cukup isi <b>Nama Finger</b>, <b>Nama Sales ID</b>, dan <b>Nama Tampil Web</b>. Sistem otomatis menghubungkan absensi & penjualan. Tidak perlu buka Firebase.</div>
     <div class="card">
       <h3><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Tambah Promotor</h3>
-      <p>Klik tombol di bawah untuk menambah promotor baru.</p>
-      <button class="btn-primary btn-full" onclick="bukaFormMaster()">+ Tambah Promotor Baru</button>
-      <button class="btn-warning btn-full" style="margin-top:8px;" onclick="migrasiDataLama()"><svg viewBox="0 0 24 24"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.3"/></svg> Migrasi Data Lama (sekali klik)</button>
+      <div style="display:flex; gap:12px; flex-wrap:wrap;">
+        <button class="btn-primary" style="flex:1;" onclick="bukaFormMaster()">+ Tambah Promotor Baru</button>
+        <button class="btn-warning" style="flex:1;" onclick="migrasiDataLama()"><svg viewBox="0 0 24 24"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.3"/></svg> Migrasi Data Lama</button>
+      </div>
     </div>
     <div class="card">
       <h3><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg> Daftar Promotor Tampil (${list.length} dari ${totalAll} total)</h3>
@@ -1294,15 +1294,13 @@ function renderAdmin() {
     .sort((a,b) => (a.namaAbsen || '').localeCompare(b.namaAbsen || ''));
 
   return `
-    <div class="alert warn"><svg viewBox="0 0 24 24" style="width:18px;height:18px;stroke:currentColor;stroke-width:2.5;fill:none;flex-shrink:0;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> <b>Admin</b> adalah pengelola web. Bisa login & akses semua tab. Tidak perlu absensi/penjualan. <br><small>Untuk admin pertama, isi manual di Firebase Console (bootstrap sekali). Setelah itu, tambah admin lain dari sini.</small></div>
     <div class="card">
       <h3><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Tambah Admin Baru</h3>
-      <p>Isi nama tampil & email Google admin. Setelah simpan, admin bisa langsung login.</p>
       <button class="btn-primary btn-full" onclick="bukaFormAdmin()">+ Tambah Admin Baru</button>
     </div>
     <div class="card">
       <h3><svg viewBox="0 0 24 24"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg> Daftar Admin (${listAdmin.length})</h3>
-      ${listAdmin.length === 0 ? '<div class="alert warn">Belum ada admin terdaftar di master_promotor. Bootstrap manual dulu.</div>' : ''}
+      ${listAdmin.length === 0 ? '<div class="alert warn">Belum ada admin.</div>' : ''}
       ${listAdmin.map(p => `
         <div class="list-item">
           <div class="kiri">
