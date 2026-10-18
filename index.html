@@ -5,16 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>UFO Kebonsari - Dashboard Promotor</title>
 <script>
-  // Mencegah klik kanan
   document.addEventListener('contextmenu', event => event.preventDefault());
-
-  // Mencegah tombol F12, Ctrl+Shift+I, Ctrl+U (View Source)
   document.onkeydown = function(e) {
-    if (e.keyCode == 123) { return false; } // F12
-    if (e.ctrlKey && e.shiftKey && e.keyCode == 'I'.charCodeAt(0)) { return false; } // Ctrl+Shift+I
-    if (e.ctrlKey && e.shiftKey && e.keyCode == 'C'.charCodeAt(0)) { return false; } // Ctrl+Shift+C
-    if (e.ctrlKey && e.shiftKey && e.keyCode == 'J'.charCodeAt(0)) { return false; } // Ctrl+Shift+J
-    if (e.ctrlKey && e.keyCode == 'U'.charCodeAt(0)) { return false; } // Ctrl+U
+    if (e.keyCode == 123) { return false; }
+    if (e.ctrlKey && e.shiftKey && e.keyCode == 'I'.charCodeAt(0)) { return false; }
+    if (e.ctrlKey && e.shiftKey && e.keyCode == 'C'.charCodeAt(0)) { return false; }
+    if (e.ctrlKey && e.shiftKey && e.keyCode == 'J'.charCodeAt(0)) { return false; }
+    if (e.ctrlKey && e.keyCode == 'U'.charCodeAt(0)) { return false; }
   }
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1480,7 +1477,7 @@ async function tampilkanDashboard() {
     return;
   }
   
-   currentUser = {
+  currentUser = {
     key: window.firebaseUser.promotorKey || window.firebaseUser.uid,
     email: window.firebaseUser.email,
     namaAbsen: window.firebaseUser.namaTampil,
@@ -1502,6 +1499,9 @@ async function tampilkanDashboard() {
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('dashboard').classList.remove('hidden');
 
+  // Paksa hapus cache lama setiap kali login
+  try { sessionStorage.clear(); } catch(e) {}
+
   await loadPromotorList();
 
   const isAdmin = currentUser.role === 'ADMIN';
@@ -1519,12 +1519,9 @@ async function tampilkanDashboard() {
     document.getElementById('topBar').classList.remove('admin-mode');
   }
 
-// Paksa hapus cache lama setiap kali login
-try { sessionStorage.clear(); } catch(e) {}
-
-// Tarik data baru secara paksa
-await muatDataBulanIni(true);
-renderMenuGrid();
+  // Tarik data baru secara paksa
+  await muatDataBulanIni(true);
+  renderMenuGrid();
   
   // Cek status tombol refresh
   const today = new Date().toDateString();
@@ -1538,6 +1535,7 @@ renderMenuGrid();
 }
 window.tampilkanDashboard = tampilkanDashboard;
 
+/* ===== LOADER DATA (pakai cache + get) ===== */
 async function muatDataBulanIni(forceRefresh = false) {
   const isAdminRole = currentUser.role === 'ADMIN';
 
@@ -1545,7 +1543,6 @@ async function muatDataBulanIni(forceRefresh = false) {
   // PAKSA BACA DARI 'all' AGAR DATA SELALU MUNCUL
   const pathProm = 'penjualan/2026-10/all';
   const cacheKeyProm = isAdminRole ? 'penjualan_2026-10_all' : 'penjualan_2026-10_' + currentUser.key;
-  ...
 
   let dataPenjualan = forceRefresh ? null : cacheGet(cacheKeyProm);
   if (!dataPenjualan) {
@@ -1872,27 +1869,28 @@ function getPeriodeRentangDinamis() {
 
 function getDataSaya() {
     if (!currentUser) return [];
-    
-    // Jika ADMIN dan sedang memilih promotor lewat dropdown, gunakan key promotor tersebut
-    // Jika Promotor biasa, gunakan currentUser.key miliknya sendiri
     const targetKey = (currentUser.role === 'ADMIN' && promotorTerpilih) 
         ? promotorTerpilih 
         : currentUser.key;
-        
     const dataP = allPromotor[targetKey] || currentUser;
     
+    // Paksa ambil nama sales dari data promotor
     const namaSalesUser = String(dataP.namaSales || '').trim().toUpperCase();
     const namaAbsenUser = String(dataP.namaAbsen || '').trim().toUpperCase();
     
     const semuaPenjualan = typeof allPenjualan !== 'undefined' ? allPenjualan : []; 
+    
+    // LOGIKA BARU: Ambil SEMUA data penjualan, jangan difilter dulu
+    // (Untuk mengetes apakah datanya benar-benar ada di memori)
+    console.log("Total data penjualan yang ditarik:", semuaPenjualan.length);
+    console.log("Nama Sales Promotor:", namaSalesUser);
+    console.log("Nama Absen Promotor:", namaAbsenUser);
 
     return semuaPenjualan.filter(x => {
-        if (!x || !x.namaSales) return false;
+        if (!x) return false;
         const salesTrans = String(x.namaSales || '').trim().toUpperCase();
         
-        if (!namaSalesUser && !namaAbsenUser) return false;
-
-        // Cocokkan apakah nama di transaksi mengandung nama promotor atau sebaliknya
+        // Filter longgar: jika nama sales transaksi MENGANDUNG nama promotor, atau sebaliknya
         const matchSales = namaSalesUser && (salesTrans.includes(namaSalesUser) || namaSalesUser.includes(salesTrans));
         const matchAbsen = namaAbsenUser && (salesTrans.includes(namaAbsenUser) || namaAbsenUser.includes(salesTrans));
         
