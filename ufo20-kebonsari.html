@@ -721,10 +721,18 @@ function handleFileFinger(e) {
       if (!sheet) { el.innerHTML = '<div class="alert err">❌ Sheet tidak ditemukan!</div>'; return; }
       const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
       const absensiData = {};
-      let promotorCount = 0, hariCount = 0, skipList = [];
+      let promotorCount = 0, hariCount = 0;
+      let skipList = [];
       const bulanIni = getNamaBulanIndo(BULAN_INI);
       
-             let namaFinger = m[1].trim();
+      // LOOPING DIMULAI DARI SINI
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        if (!row || !row[0]) continue;
+        const m = String(row[0]).match(/Nama:(\S+)/);
+        if (!m) continue;
+        
+        let namaFinger = m[1].trim();
         const cleanKey = sanitizeKey(namaFinger);
         let foundKey = null, foundPromotor = null;
         const upperFinger = namaFinger.toUpperCase();
@@ -760,10 +768,12 @@ function handleFileFinger(e) {
           if (skipList.indexOf(namaFinger) === -1) skipList.push(namaFinger); 
           continue; 
         }
+        
         const dateRow = rows[i + 1], jamRow = rows[i + 2];
         if (!dateRow || !jamRow) continue;
         if (!absensiData[foundKey]) absensiData[foundKey] = {};
         promotorCount++;
+        
         for (let col = 1; col < Math.max(dateRow.length, jamRow.length); col++) {
           const hariNum = parseInt(dateRow[col]) || 0;
           const jamStr = String(jamRow[col] || '').trim();
@@ -786,13 +796,14 @@ function handleFileFinger(e) {
           hariCount++;
         }
       }
+      
       if (promotorCount === 0) {
         el.innerHTML = `<div class="alert err">❌ Tidak ada promotor cocok!<br>Nama di file: ${skipList.slice(0,5).join(', ')}</div>`;
         return;
       }
       el.innerHTML = `
         <div class="alert ok">✅ ${promotorCount} promotor • ${hariCount} hari
-        ${skipList.length > 0 ? `<br><small>⚠️ ${skipList.length} tidak cocok</small>` : ''}</div>
+        ${skipList.length > 0 ? `<br><small>⚠️ ${skipList.length} tidak cocok (${skipList.slice(0,3).join(', ')}...)</small>` : ''}</div>
         <button class="btn-success btn-full" onclick="konfirmasiUploadFinger()">Konfirmasi Upload</button>
       `;
       window._fingerData = absensiData;
@@ -800,7 +811,6 @@ function handleFileFinger(e) {
   };
   reader.readAsArrayBuffer(file);
 }
-
 async function konfirmasiUploadFinger() {
   const data = window._fingerData;
   if (!data) return;
