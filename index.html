@@ -1519,8 +1519,12 @@ async function tampilkanDashboard() {
     document.getElementById('topBar').classList.remove('admin-mode');
   }
 
-  await muatDataBulanIni();
-  renderMenuGrid();
+// Paksa hapus cache lama setiap kali login
+try { sessionStorage.clear(); } catch(e) {}
+
+// Tarik data baru secara paksa
+await muatDataBulanIni(true);
+renderMenuGrid();
   
   // Cek status tombol refresh
   const today = new Date().toDateString();
