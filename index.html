@@ -1815,7 +1815,6 @@ function parseTanggal(str) {
     return new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]));
   }
   
-  // Format DD/MM/YYYY atau MM/DD/YYYY
   const p = s.split('/');
   if (p.length !== 3) return null;
   
@@ -1823,52 +1822,45 @@ function parseTanggal(str) {
   let part2 = Number(p[1]);
   let part3 = Number(p[2]);
   
-  // Jika tahun di depan, pindahkan ke belakang
-  if (part1 > 2000) {
-    return new Date(part1, part2 - 1, part3);
-  }
+  // Jika tahun di depan
+  if (part1 > 2000) return new Date(part1, part2 - 1, part3);
   
   let tgl, bln;
-  // KHUSUS KASUS ANDA: Kita prioritaskan format Indonesia (Tanggal/Bulan)
-  // Jika angka pertama > 12 (misal 18), mutlak itu TANGGAL.
   if (part1 > 12) {
-    tgl = part1;
-    bln = part2;
-  } 
-  // Jika angka kedua > 12 (misal 15), dan angka pertama <= 12, 
-  // bisa jadi Excel membaliknya jadi Bulan/Tanggal (US).
-  else if (part2 > 12) {
-    tgl = part2;
-    bln = part1;
-  } 
-  // Jika ambigu (misal 12/10/2026), kita PAKSA anggap Indonesia: Tgl 12, Bln 10.
-  else {
-    tgl = part1;
-    bln = part2;
+    tgl = part1; bln = part2;
+  } else if (part2 > 12) {
+    tgl = part2; bln = part1; 
+  } else {
+    tgl = part1; bln = part2; // Paksa format Indonesia (Tgl/Bln/Thn)
   }
   
   const d = new Date(part3, bln - 1, tgl);
   return isNaN(d.getTime()) ? null : d;
 }
-function getPeriodeRentangDinamis() {
+ function getPeriodeRentangDinamis() {
   const semuaPenjualan = typeof allPenjualan !== 'undefined' ? allPenjualan : [];
   const namaBulan = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
   
-  // Paksa kunci ke Oktober 2026 (Bulan ke-9 di JavaScript)
-  const targetBulan = 9; 
-  const targetTahun = 2026;
-  const tglAwal = `1 Oktober 2026`;
+  // 1. Otomatis mendeteksi bulan & tahun berjalan saat ini
+  const today = new Date();
+  const targetBulan = today.getMonth(); 
+  const targetTahun = today.getFullYear();
   
-  if (semuaPenjualan.length === 0) {
+  // 2. Tentukan tanggal awal (Tanggal 1 bulan ini)
+  const tglAwal = `1 ${namaBulan[targetBulan]} ${targetTahun}`;
+  
+  // Jika belum ada data sama sekali
+  if (!semuaPenjualan || semuaPenjualan.length === 0) {
     return { pertama: tglAwal, terakhir: '-' };
   }
   
+  // 3. Cari tanggal paling besar (terakhir) khusus di bulan berjalan
   let maxDate = null;
   semuaPenjualan.forEach(x => {
     if (!x || !x.tanggal) return;
     const d = parseTanggal(x.tanggal);
     
-    // Hanya hitung jika bulan dan tahunnya benar-benar Oktober 2026
+    // Pastikan hanya memproses tanggal yang bulan & tahunnya sama dengan bulan ini
     if (d && d.getMonth() === targetBulan && d.getFullYear() === targetTahun) {
       if (!maxDate || d > maxDate) {
         maxDate = d;
@@ -1876,18 +1868,20 @@ function getPeriodeRentangDinamis() {
     }
   });
   
-  // Jika karena suatu hal tidak ada yang lolos filter, tampilkan default 18 Oktober
+  // Jika tidak ada tanggal yang lolos filter
   if (!maxDate) {
-    return { pertama: tglAwal, terakhir: '18 Oktober 2026' };
+    return { pertama: tglAwal, terakhir: '-' };
   }
   
+  // 4. Format tanggal terakhir menjadi teks (contoh: "19 Oktober 2026")
   const tglTerakhirStr = `${String(maxDate.getDate()).padStart(2, '0')} ${namaBulan[maxDate.getMonth()]} ${maxDate.getFullYear()}`;
   
   return {
     pertama: tglAwal,
     terakhir: tglTerakhirStr
   };
-}
+} 
+
 
 function getDataSaya() {
     if (!currentUser) return [];
