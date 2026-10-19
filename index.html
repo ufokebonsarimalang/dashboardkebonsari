@@ -1337,7 +1337,7 @@ window.loginDenganGoogle = loginDenganGoogle;
 async function loadPromotorList(forceRefresh = false) {
   const liveEl = document.getElementById('live-status-text');
   if (!window.firebaseAuth || !window.firebaseAuth.currentUser) {
-    if (liveEl) liveEl.innerText = 'Sistem Siap';
+    if (liveEl) liveEl.innerText = 'System Ready';
     return;
   }
 
@@ -1807,37 +1807,53 @@ function tanggalKeNama(tglStr) {
 
 function parseTanggal(str) {
   if (!str) return null;
-  const p = String(str).split('/');
+  const s = String(str).trim();
+  
+  // Dukung format YYYY-MM-DD (dari Excel)
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
+    const p = s.split(' ')[0].split('-');
+    return new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]));
+  }
+  
+  // Dukung format DD/MM/YYYY
+  const p = s.split('/');
   if (p.length !== 3) return null;
-  return new Date(Number(p[2]), Number(p[1]) - 1, Number(p[0]));
+  
+  const d = new Date(Number(p[2]), Number(p[1]) - 1, Number(p[0]));
+  return isNaN(d.getTime()) ? null : d;
 }
-
 function getPeriodeRentangDinamis() {
   const semuaPenjualan = typeof allPenjualan !== 'undefined' ? allPenjualan : [];
   const today = new Date();
+  const namaBulan = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
   
   // Tanggal 1 di bulan berjalan
-  const tglAwal = `1 ${['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'][today.getMonth()]} ${today.getFullYear()}`;
+  const tglAwal = `1 ${namaBulan[today.getMonth()]} ${today.getFullYear()}`;
   
-  // Jika belum ada data penjualan sama sekali
   if (semuaPenjualan.length === 0) {
     return { pertama: tglAwal, terakhir: '-' };
   }
   
-  // Cari tanggal paling akhir dari data yang di-upload admin
-  const tglValid = semuaPenjualan.map(x => x.tanggal).filter(Boolean).sort((a, b) => {
-    const da = parseTanggal(a), db = parseTanggal(b);
-    return (da || 0) - (db || 0);
+  // Cari tanggal paling besar secara manual (tanpa sort)
+  let maxDate = null;
+  semuaPenjualan.forEach(x => {
+    if (!x || !x.tanggal) return;
+    const d = parseTanggal(x.tanggal);
+    if (d && (!maxDate || d > maxDate)) {
+      maxDate = d;
+    }
   });
   
-  if (tglValid.length === 0) {
+  if (!maxDate) {
     return { pertama: tglAwal, terakhir: '-' };
   }
   
-  const tglTerakhirStr = tglValid[tglValid.length - 1];
+  // Format tanggal terakhir
+  const tglTerakhirStr = `${String(maxDate.getDate()).padStart(2, '0')} ${namaBulan[maxDate.getMonth()]} ${maxDate.getFullYear()}`;
+  
   return {
     pertama: tglAwal,
-    terakhir: tanggalKeNama(tglTerakhirStr)
+    terakhir: tglTerakhirStr
   };
 }
 
