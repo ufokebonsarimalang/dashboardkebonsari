@@ -1809,17 +1809,41 @@ function parseTanggal(str) {
   if (!str) return null;
   const s = String(str).trim();
   
-  // Dukung format YYYY-MM-DD (dari Excel)
+  // Format YYYY-MM-DD (dari sistem / ISO)
   if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
     const p = s.split(' ')[0].split('-');
     return new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]));
   }
   
-  // Dukung format DD/MM/YYYY
+  // Format DD/MM/YYYY atau MM/DD/YYYY
   const p = s.split('/');
   if (p.length !== 3) return null;
   
-  const d = new Date(Number(p[2]), Number(p[1]) - 1, Number(p[0]));
+  let part1 = Number(p[0]);
+  let part2 = Number(p[1]);
+  let part3 = Number(p[2]);
+  
+  // Jika tahun di depan, pindahkan ke belakang
+  if (part1 > 2000) {
+    return new Date(part1, part2 - 1, part3);
+  }
+  
+  let tgl, bln;
+  if (part1 > 12) {
+    // Jika angka pertama > 12 (misal 18), berarti ini TANGGAL.
+    tgl = part1;
+    bln = part2;
+  } else if (part2 > 12) {
+    // Jika angka kedua > 12 (misal 18), berarti ini TANGGAL (format US).
+    tgl = part2;
+    bln = part1;
+  } else {
+    // Jika ambigu (misal 05/10/2026), asumsikan format Indonesia (Tgl/Bln/Thn)
+    tgl = part1;
+    bln = part2;
+  }
+  
+  const d = new Date(part3, bln - 1, tgl);
   return isNaN(d.getTime()) ? null : d;
 }
 function getPeriodeRentangDinamis() {
@@ -1856,6 +1880,7 @@ function getPeriodeRentangDinamis() {
     terakhir: tglTerakhirStr
   };
 }
+
 
 function getDataSaya() {
     if (!currentUser) return [];
