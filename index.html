@@ -1583,16 +1583,34 @@ async function muatDataBulanIni(forceRefresh = false) {
   }
 
   // --- Absensi ---
+   // --- Absensi ---
   const keyUser = isAdminRole ? null : currentUser.key;
-  const cacheKey = keyUser ? 'absensi_2026-10_' + keyUser : 'absensi_2026-10';
+  const cacheKey = keyUser ? 'absensi_2026-10_' + keyUser : 'absensi_2026-10_all'; // Ubah nama cache admin
 
   let dataAbsensi = forceRefresh ? null : cacheGet(cacheKey);
   if (!dataAbsensi) {
     try {
       if (isAdminRole) {
-        const snap = await window.dbGet(window.dbRef(window.db, 'absensi/2026-10'));
-        allAbsensiAll = snap.exists() ? snap.val() : {};
+        // JIKA ADMIN: Ambil data absensi satu per satu untuk setiap promotor
+        allAbsensiAll = {};
+        const listPromotorKeys = Object.keys(allPromotor);
+        
+        // Gunakan Promise.all agar pengambilan data berjalan paralel (lebih cepat)
+        const promises = listPromotorKeys.map(async (keyProm) => {
+          try {
+            const snap = await window.dbGet(window.dbRef(window.db, 'absensi/2026-10/' + keyProm));
+            if (snap.exists()) {
+              allAbsensiAll[keyProm] = snap.val();
+            }
+          } catch (err) {
+            console.warn("Gagal ambil absensi promotor " + keyProm, err);
+          }
+        });
+        
+        await Promise.all(promises);
+        
       } else {
+        // JIKA PROMOTOR BIASA: Ambil data dirinya sendiri
         const snap = await window.dbGet(window.dbRef(window.db, 'absensi/2026-10/' + keyUser));
         allAbsensiAll = {};
         allAbsensiAll[keyUser] = snap.exists() ? snap.val() : {};
