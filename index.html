@@ -31,21 +31,13 @@ import { getDatabase, ref, get, onValue } from "https://www.gstatic.com/firebase
 import { getAuth, onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
 const firebaseConfig = {
-
   apiKey: "AIzaSyCcBuaevlaemlP2mX87gGi2JwGR29Y05as",
-
   authDomain: "dashboardkebonsari.firebaseapp.com",
-
   databaseURL: "https://dashboardkebonsari-default-rtdb.asia-southeast1.firebasedatabase.app",
-
   projectId: "dashboardkebonsari",
-
   storageBucket: "dashboardkebonsari.firebasestorage.app",
-
   messagingSenderId: "68113369328",
-
   appId: "1:68113369328:web:200be7e778bdc9104b5a35"
-
 };
 
 const app = initializeApp(firebaseConfig);
@@ -1475,7 +1467,7 @@ async function tampilkanDashboard() {
     return;
   }
   
-   currentUser = {
+  currentUser = {
     key: window.firebaseUser.promotorKey || window.firebaseUser.uid,
     email: window.firebaseUser.email,
     namaAbsen: window.firebaseUser.namaTampil,
@@ -1492,40 +1484,33 @@ async function tampilkanDashboard() {
     currentUser.merk = p.merk || '';
   }
 
+  // 1. Sembunyikan login, tampilkan dashboard
   document.body.classList.remove('login-active');
   document.body.classList.add('dashboard-active');
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('dashboard').classList.remove('hidden');
 
-  await loadPromotorList();
-
+  // 2. ATUR TAMPILAN AWAL (Sembunyikan dropdown, render menu)
   const isAdmin = currentUser.role === 'ADMIN';
   if (isAdmin) {
     promotorTerpilih = null;
-    document.getElementById('promotorSelector').classList.remove('hidden');
     document.getElementById('userNama').innerHTML = 
       `${ICONS.crown} <b>${escapeHtml(currentUser.namaAbsen)}</b> <span class="admin-badge-inline">ADMIN</span>`;
     document.getElementById('topBar').classList.add('admin-mode');
   } else {
     promotorTerpilih = currentUser.key;
-    document.getElementById('promotorSelector').classList.add('hidden');
     document.getElementById('userNama').innerHTML = 
       `<b>${escapeHtml(currentUser.namaAbsen)}</b>`;
     document.getElementById('topBar').classList.remove('admin-mode');
   }
-
-  await muatDataBulanIni();
-  renderMenuGrid();
   
-  // Cek status tombol refresh
-  const today = new Date().toDateString();
-  const lastRefresh = localStorage.getItem('ufo_last_refresh_' + currentUser.key);
-  const btnRefresh = document.querySelector('.refresh-btn');
-  if (btnRefresh && lastRefresh === today) {
-    btnRefresh.disabled = true;
-    btnRefresh.style.opacity = '0.5';
-    btnRefresh.title = 'Sudah refresh hari ini';
-  }
+  // PAKSA SEMBUNYIKAN DROPDOWN & TAMPILKAN MENU SEKARANG JUGA
+  document.getElementById('promotorSelector').classList.add('hidden');
+  renderMenuGrid();
+
+  // 3. BARU MULAI UNDUH DATA DI LATAR BELAKANG
+  await loadPromotorList();
+  await muatDataBulanIni();
 }
 window.tampilkanDashboard = tampilkanDashboard;
 
@@ -1697,6 +1682,7 @@ function renderMenuGrid() {
   }).join('');
 }
 window.renderMenuGrid = renderMenuGrid;
+
 function kembaliKeMenu() {
   currentMenu = null;
   document.getElementById('detailView').classList.add('hidden');
@@ -1811,35 +1797,22 @@ async function tampilkanDetail(menuKey, isRealtimeUpdate = false) {
 window.tampilkanDetail = tampilkanDetail;
 /* ===== HELPER ===== */
 function tanggalKeNama(tglStr) {
-  if (!tglStr || tglStr === 'Tanpa Tanggal') return 'Tanpa Tanggal';
-  
-  // Jika format bukan Tgl/Bln/Thn, kembalikan teks aslinya
+  if (!tglStr) return '-';
   const parts = String(tglStr).split('/');
-  if (parts.length !== 3) return String(tglStr); 
-
+  if (parts.length !== 3) return tglStr;
   const mm = parseInt(parts[0]);
   const dd = parseInt(parts[1]);
   const yyyy = parts[2];
-  
-  // Jika hasil parsing bukan angka, kembalikan teks aslinya
-  if (isNaN(dd) || isNaN(mm) || isNaN(Number(yyyy))) return String(tglStr); 
-
+  if (isNaN(dd) || isNaN(mm)) return tglStr;
   const namaBulan = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
                      'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
-                     
-  // Jika bulan di luar 1-12, kembalikan teks aslinya
-  if (mm < 1 || mm > 12) return String(tglStr);
-
-  return `${dd} ${namaBulan[mm - 1]} ${yyyy}`;
+  return `${dd} ${namaBulan[mm - 1] || '?'} ${yyyy}`;
 }
 
 function parseTanggal(str) {
   if (!str) return null;
   const s = String(str).trim();
   
-  // Jika formatnya aneh atau cuma angka, anggap tidak valid
-  if (s === '' || s === '-' || s === '?' || !isNaN(Number(s))) return null;
-
   // Format YYYY-MM-DD (ISO)
   if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
     const p = s.split(' ')[0].split('-');
@@ -1852,8 +1825,6 @@ function parseTanggal(str) {
   let part1 = Number(p[0]);
   let part2 = Number(p[1]);
   let part3 = Number(p[2]);
-  
-  if (isNaN(part1) || isNaN(part2) || isNaN(part3)) return null;
   
   // Jika tahun di depan
   if (part1 > 2000) return new Date(part1, part2 - 1, part3);
