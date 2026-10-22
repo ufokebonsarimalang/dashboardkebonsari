@@ -1053,6 +1053,61 @@ body.light-mode .custom-toast {
   border-color: rgba(212, 175, 55, 0.6);
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
 }
+  /* ============================================================ */
+/* ===== UBAH AKSEN EMAS -> BIRU CERAH (MODE TERANG) ========= */
+/* ============================================================ */
+
+/* Ikon Menu */
+body.light-mode .menu-icon { background: #e0f2fe !important; }
+body.light-mode .menu-icon svg { stroke: #0284c7 !important; }
+
+/* Kartu Menu */
+body.light-mode .menu-card { border-color: #bae6fd !important; }
+body.light-mode .menu-card:hover {
+  border-color: #38bdf8 !important;
+  box-shadow: 0 18px 40px rgba(14, 165, 233, 0.15) !important;
+}
+
+/* Label ADMIN di Kartu */
+body.light-mode .menu-card.admin-only::after {
+  background: #0ea5e9 !important;
+  color: #ffffff !important;
+}
+
+/* Badge ADMIN di Header */
+body.light-mode .admin-badge-inline {
+  background: linear-gradient(135deg, #0ea5e9, #0284c7) !important;
+  color: #ffffff !important;
+  box-shadow: 0 0 10px rgba(14, 165, 233, 0.4) !important;
+}
+
+/* Tombol Kembali */
+body.light-mode .back-btn {
+  background: #0ea5e9 !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3) !important;
+}
+
+/* Dropdown Pilih Promotor */
+body.light-mode .promotor-selector label { color: #0284c7 !important; }
+body.light-mode .custom-dropdown-trigger.open {
+  border-color: #38bdf8 !important;
+  box-shadow: 0 0 20px rgba(56, 189, 248, 0.2) !important;
+}
+body.light-mode .custom-dropdown-trigger svg { color: #0ea5e9 !important; }
+body.light-mode .custom-dropdown-menu .dd-option:hover,
+body.light-mode .custom-dropdown-menu .dd-option.selected {
+  background: rgba(14, 165, 233, 0.15) !important;
+  color: #0284c7 !important;
+}
+body.light-mode .custom-dropdown-menu .dd-option.selected::before {
+  background: #0284c7 !important;
+  box-shadow: 0 0 8px #0284c7 !important;
+}
+
+/* Judul Ringkasan (Summary Card) */
+body.light-mode .summary-card h2 { color: #0284c7 !important; }
+body.light-mode .summary-card h2 svg { stroke: #0284c7 !important; }
 </style>
 </head>
 <body class="login-active">
