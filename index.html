@@ -1053,78 +1053,6 @@ body.light-mode .custom-toast {
   border-color: rgba(212, 175, 55, 0.6);
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
 }
-  /* ============================================================ */
-/* ===== UBAH AKSEN EMAS -> BIRU CERAH (MODE TERANG) ========= */
-/* ============================================================ */
-
-/* 1. Ikon Menu (Kotak & Garis) */
-body.light-mode .menu-icon {
-  background: #e0f2fe !important; /* Latar ikon biru sangat muda */
-}
-body.light-mode .menu-icon svg {
-  stroke: #0284c7 !important; /* Garis ikon biru tua */
-}
-
-/* 2. Kartu Menu (Garis Tepi) */
-body.light-mode .menu-card {
-  border-color: #bae6fd !important; /* Border biru muda */
-}
-body.light-mode .menu-card:hover {
-  border-color: #38bdf8 !important; /* Border biru terang saat disentuh */
-  box-shadow: 0 18px 40px rgba(14, 165, 233, 0.15) !important;
-}
-
-/* 3. Label ADMIN di Pojok Kanan Atas */
-body.light-mode .menu-card.admin-only::after {
-  background: #0ea5e9 !important; /* Biru cerah */
-  color: #ffffff !important;
-}
-
-/* 4. Badge ADMIN di Header (Atas) */
-body.light-mode .admin-badge-inline {
-  background: linear-gradient(135deg, #0ea5e9, #0284c7) !important;
-  color: #ffffff !important;
-  box-shadow: 0 0 10px rgba(14, 165, 233, 0.4) !important;
-}
-
-/* 5. Tombol "Kembali ke Menu" */
-body.light-mode .back-btn {
-  background: #0ea5e9 !important;
-  color: #ffffff !important;
-  box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3) !important;
-}
-
-/* 6. Dropdown Pilih Promotor */
-body.light-mode .promotor-selector label {
-  color: #0284c7 !important;
-}
-body.light-mode .custom-dropdown-trigger {
-  border-color: #bae6fd !important;
-}
-body.light-mode .custom-dropdown-trigger.open {
-  border-color: #38bdf8 !important;
-  box-shadow: 0 0 20px rgba(56, 189, 248, 0.2) !important;
-}
-body.light-mode .custom-dropdown-trigger svg {
-  color: #0ea5e9 !important;
-}
-body.light-mode .custom-dropdown-menu .dd-option:hover,
-body.light-mode .custom-dropdown-menu .dd-option.selected {
-  background: rgba(14, 165, 233, 0.15) !important;
-  color: #0284c7 !important;
-}
-body.light-mode .custom-dropdown-menu .dd-option.selected::before {
-  background: #0284c7 !important;
-  box-shadow: 0 0 8px #0284c7 !important;
-}
-
-/* 7. Judul Ringkasan (Summary Card) yang tadinya Emas */
-body.light-mode .summary-card h2 {
-  color: #0284c7 !important; 
-}
-body.light-mode .summary-card h2 svg {
-  stroke: #0284c7 !important; 
-}
 </style>
 </head>
 <body class="login-active">
@@ -1539,7 +1467,7 @@ async function tampilkanDashboard() {
     return;
   }
   
-  currentUser = {
+   currentUser = {
     key: window.firebaseUser.promotorKey || window.firebaseUser.uid,
     email: window.firebaseUser.email,
     namaAbsen: window.firebaseUser.namaTampil,
@@ -1556,33 +1484,40 @@ async function tampilkanDashboard() {
     currentUser.merk = p.merk || '';
   }
 
-  // 1. Sembunyikan login, tampilkan dashboard
   document.body.classList.remove('login-active');
   document.body.classList.add('dashboard-active');
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('dashboard').classList.remove('hidden');
 
-  // 2. ATUR TAMPILAN AWAL (Sembunyikan dropdown, render menu)
+  await loadPromotorList();
+
   const isAdmin = currentUser.role === 'ADMIN';
   if (isAdmin) {
     promotorTerpilih = null;
+    document.getElementById('promotorSelector').classList.remove('hidden');
     document.getElementById('userNama').innerHTML = 
       `${ICONS.crown} <b>${escapeHtml(currentUser.namaAbsen)}</b> <span class="admin-badge-inline">ADMIN</span>`;
     document.getElementById('topBar').classList.add('admin-mode');
   } else {
     promotorTerpilih = currentUser.key;
+    document.getElementById('promotorSelector').classList.add('hidden');
     document.getElementById('userNama').innerHTML = 
       `<b>${escapeHtml(currentUser.namaAbsen)}</b>`;
     document.getElementById('topBar').classList.remove('admin-mode');
   }
-  
-  // PAKSA SEMBUNYIKAN DROPDOWN & TAMPILKAN MENU SEKARANG JUGA
-  document.getElementById('promotorSelector').classList.add('hidden');
-  renderMenuGrid();
 
-  // 3. BARU MULAI UNDUH DATA DI LATAR BELAKANG
-  await loadPromotorList();
   await muatDataBulanIni();
+  renderMenuGrid();
+  
+  // Cek status tombol refresh
+  const today = new Date().toDateString();
+  const lastRefresh = localStorage.getItem('ufo_last_refresh_' + currentUser.key);
+  const btnRefresh = document.querySelector('.refresh-btn');
+  if (btnRefresh && lastRefresh === today) {
+    btnRefresh.disabled = true;
+    btnRefresh.style.opacity = '0.5';
+    btnRefresh.title = 'Sudah refresh hari ini';
+  }
 }
 window.tampilkanDashboard = tampilkanDashboard;
 
@@ -1754,7 +1689,6 @@ function renderMenuGrid() {
   }).join('');
 }
 window.renderMenuGrid = renderMenuGrid;
-
 function kembaliKeMenu() {
   currentMenu = null;
   document.getElementById('detailView').classList.add('hidden');
@@ -1868,42 +1802,27 @@ async function tampilkanDetail(menuKey, isRealtimeUpdate = false) {
 }
 window.tampilkanDetail = tampilkanDetail;
 /* ===== HELPER ===== */
-function parseTanggal(str) {
-  if (!str) return null;
-  const s = String(str).trim();
+function tanggalKeNama(tglStr) {
+  if (!tglStr || tglStr === 'Tanpa Tanggal') return 'Tanpa Tanggal';
   
-  // Jika formatnya aneh atau cuma angka, anggap tidak valid
-  if (s === '' || s === '-' || s === '?' || !isNaN(Number(s))) return null;
+  // Jika format bukan Tgl/Bln/Thn, kembalikan teks aslinya
+  const parts = String(tglStr).split('/');
+  if (parts.length !== 3) return String(tglStr); 
 
-  // Format YYYY-MM-DD (ISO)
-  if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
-    const p = s.split(' ')[0].split('-');
-    return new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]));
-  }
+  const mm = parseInt(parts[0]);
+  const dd = parseInt(parts[1]);
+  const yyyy = parts[2];
   
-  const p = s.split('/');
-  if (p.length !== 3) return null;
-  
-  let part1 = Number(p[0]);
-  let part2 = Number(p[1]);
-  let part3 = Number(p[2]);
-  
-  if (isNaN(part1) || isNaN(part2) || isNaN(part3)) return null;
-  
-  // Jika tahun di depan
-  if (part1 > 2000) return new Date(part1, part2 - 1, part3);
-  
-  let tgl, bln;
-  if (part1 > 12) {
-    tgl = part1; bln = part2;
-  } else if (part2 > 12) {
-    tgl = part2; bln = part1; 
-  } else {
-    tgl = part1; bln = part2; // Paksa format Indonesia (Tgl/Bln/Thn)
-  }
-  
-  const d = new Date(part3, bln - 1, tgl);
-  return isNaN(d.getTime()) ? null : d;
+  // Jika hasil parsing bukan angka, kembalikan teks aslinya
+  if (isNaN(dd) || isNaN(mm) || isNaN(Number(yyyy))) return String(tglStr); 
+
+  const namaBulan = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+                     'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+                     
+  // Jika bulan di luar 1-12, kembalikan teks aslinya
+  if (mm < 1 || mm > 12) return String(tglStr);
+
+  return `${dd} ${namaBulan[mm - 1]} ${yyyy}`;
 }
 
 function parseTanggal(str) {
@@ -2069,11 +1988,11 @@ function renderAbsensi() {
     else if (isNoMasuk) statusText = "Tidak Finger Masuk";
     else if (isNoPulang) statusText = "Tidak Finger Pulang";
     const status = `<span class="${(isNoMasuk || isNoPulang || isTerlambat) ? 'status-warning' : 'status-ok'}">${statusText}</span>`;
-   let tglAbsenStr = String(x.hari || '').trim();
-if (!tglAbsenStr.includes('/') && !tglAbsenStr.includes('-')) {
-    // Biarkan tampil sebagai angka saja, jangan dipaksa jadi 10/../2026
-    tglAbsenStr = `Tgl ${tglAbsenStr}`; 
-}
+    let tglAbsenStr = String(x.hari || '').trim();
+    if (!tglAbsenStr.includes('/') && !tglAbsenStr.includes('-')) {
+        const hariAngka = tglAbsenStr.padStart(2, '0');
+        tglAbsenStr = `10/${hariAngka}/2026`;
+    }
     const formatTglFinal = tanggalKeNama(tglAbsenStr);
     const kelasTambahan = isTerlambat ? 'late' : '';
     const labelTerlambat = isTerlambat ? '<div style="color:#facc15;font-weight:900;margin-top:6px;font-size:11px;letter-spacing:1px;text-shadow:0 0 8px rgba(250,204,21,0.8);">⚠️ TERLAMBAT</div>' : '';
