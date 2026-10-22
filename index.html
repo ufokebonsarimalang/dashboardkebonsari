@@ -1053,6 +1053,78 @@ body.light-mode .custom-toast {
   border-color: rgba(212, 175, 55, 0.6);
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
 }
+  /* ============================================================ */
+/* ===== UBAH AKSEN EMAS -> BIRU CERAH (MODE TERANG) ========= */
+/* ============================================================ */
+
+/* 1. Ikon Menu (Kotak & Garis) */
+body.light-mode .menu-icon {
+  background: #e0f2fe !important; /* Latar ikon biru sangat muda */
+}
+body.light-mode .menu-icon svg {
+  stroke: #0284c7 !important; /* Garis ikon biru tua */
+}
+
+/* 2. Kartu Menu (Garis Tepi) */
+body.light-mode .menu-card {
+  border-color: #bae6fd !important; /* Border biru muda */
+}
+body.light-mode .menu-card:hover {
+  border-color: #38bdf8 !important; /* Border biru terang saat disentuh */
+  box-shadow: 0 18px 40px rgba(14, 165, 233, 0.15) !important;
+}
+
+/* 3. Label ADMIN di Pojok Kanan Atas */
+body.light-mode .menu-card.admin-only::after {
+  background: #0ea5e9 !important; /* Biru cerah */
+  color: #ffffff !important;
+}
+
+/* 4. Badge ADMIN di Header (Atas) */
+body.light-mode .admin-badge-inline {
+  background: linear-gradient(135deg, #0ea5e9, #0284c7) !important;
+  color: #ffffff !important;
+  box-shadow: 0 0 10px rgba(14, 165, 233, 0.4) !important;
+}
+
+/* 5. Tombol "Kembali ke Menu" */
+body.light-mode .back-btn {
+  background: #0ea5e9 !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3) !important;
+}
+
+/* 6. Dropdown Pilih Promotor */
+body.light-mode .promotor-selector label {
+  color: #0284c7 !important;
+}
+body.light-mode .custom-dropdown-trigger {
+  border-color: #bae6fd !important;
+}
+body.light-mode .custom-dropdown-trigger.open {
+  border-color: #38bdf8 !important;
+  box-shadow: 0 0 20px rgba(56, 189, 248, 0.2) !important;
+}
+body.light-mode .custom-dropdown-trigger svg {
+  color: #0ea5e9 !important;
+}
+body.light-mode .custom-dropdown-menu .dd-option:hover,
+body.light-mode .custom-dropdown-menu .dd-option.selected {
+  background: rgba(14, 165, 233, 0.15) !important;
+  color: #0284c7 !important;
+}
+body.light-mode .custom-dropdown-menu .dd-option.selected::before {
+  background: #0284c7 !important;
+  box-shadow: 0 0 8px #0284c7 !important;
+}
+
+/* 7. Judul Ringkasan (Summary Card) yang tadinya Emas */
+body.light-mode .summary-card h2 {
+  color: #0284c7 !important; 
+}
+body.light-mode .summary-card h2 svg {
+  stroke: #0284c7 !important; 
+}
 </style>
 </head>
 <body class="login-active">
