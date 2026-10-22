@@ -1868,23 +1868,13 @@ async function tampilkanDetail(menuKey, isRealtimeUpdate = false) {
 }
 window.tampilkanDetail = tampilkanDetail;
 /* ===== HELPER ===== */
-function tanggalKeNama(tglStr) {
-  if (!tglStr) return '-';
-  const parts = String(tglStr).split('/');
-  if (parts.length !== 3) return tglStr;
-  const mm = parseInt(parts[0]);
-  const dd = parseInt(parts[1]);
-  const yyyy = parts[2];
-  if (isNaN(dd) || isNaN(mm)) return tglStr;
-  const namaBulan = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-                     'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
-  return `${dd} ${namaBulan[mm - 1] || '?'} ${yyyy}`;
-}
-
 function parseTanggal(str) {
   if (!str) return null;
   const s = String(str).trim();
   
+  // Jika formatnya aneh atau cuma angka, anggap tidak valid
+  if (s === '' || s === '-' || s === '?' || !isNaN(Number(s))) return null;
+
   // Format YYYY-MM-DD (ISO)
   if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
     const p = s.split(' ')[0].split('-');
@@ -1897,6 +1887,46 @@ function parseTanggal(str) {
   let part1 = Number(p[0]);
   let part2 = Number(p[1]);
   let part3 = Number(p[2]);
+  
+  if (isNaN(part1) || isNaN(part2) || isNaN(part3)) return null;
+  
+  // Jika tahun di depan
+  if (part1 > 2000) return new Date(part1, part2 - 1, part3);
+  
+  let tgl, bln;
+  if (part1 > 12) {
+    tgl = part1; bln = part2;
+  } else if (part2 > 12) {
+    tgl = part2; bln = part1; 
+  } else {
+    tgl = part1; bln = part2; // Paksa format Indonesia (Tgl/Bln/Thn)
+  }
+  
+  const d = new Date(part3, bln - 1, tgl);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+function parseTanggal(str) {
+  if (!str) return null;
+  const s = String(str).trim();
+  
+  // Jika formatnya aneh atau cuma angka, anggap tidak valid
+  if (s === '' || s === '-' || s === '?' || !isNaN(Number(s))) return null;
+
+  // Format YYYY-MM-DD (ISO)
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
+    const p = s.split(' ')[0].split('-');
+    return new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]));
+  }
+  
+  const p = s.split('/');
+  if (p.length !== 3) return null;
+  
+  let part1 = Number(p[0]);
+  let part2 = Number(p[1]);
+  let part3 = Number(p[2]);
+  
+  if (isNaN(part1) || isNaN(part2) || isNaN(part3)) return null;
   
   // Jika tahun di depan
   if (part1 > 2000) return new Date(part1, part2 - 1, part3);
@@ -2039,11 +2069,11 @@ function renderAbsensi() {
     else if (isNoMasuk) statusText = "Tidak Finger Masuk";
     else if (isNoPulang) statusText = "Tidak Finger Pulang";
     const status = `<span class="${(isNoMasuk || isNoPulang || isTerlambat) ? 'status-warning' : 'status-ok'}">${statusText}</span>`;
-    let tglAbsenStr = String(x.hari || '').trim();
-    if (!tglAbsenStr.includes('/') && !tglAbsenStr.includes('-')) {
-        const hariAngka = tglAbsenStr.padStart(2, '0');
-        tglAbsenStr = `10/${hariAngka}/2026`;
-    }
+   let tglAbsenStr = String(x.hari || '').trim();
+if (!tglAbsenStr.includes('/') && !tglAbsenStr.includes('-')) {
+    // Biarkan tampil sebagai angka saja, jangan dipaksa jadi 10/../2026
+    tglAbsenStr = `Tgl ${tglAbsenStr}`; 
+}
     const formatTglFinal = tanggalKeNama(tglAbsenStr);
     const kelasTambahan = isTerlambat ? 'late' : '';
     const labelTerlambat = isTerlambat ? '<div style="color:#facc15;font-weight:900;margin-top:6px;font-size:11px;letter-spacing:1px;text-shadow:0 0 8px rgba(250,204,21,0.8);">⚠️ TERLAMBAT</div>' : '';
