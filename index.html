@@ -1883,24 +1883,38 @@ window.tampilkanDetail = tampilkanDetail;
 function tanggalKeNama(tglStr) {
   if (!tglStr || tglStr === 'Tanpa Tanggal') return 'Tanpa Tanggal';
   
-  // Jika format bukan Tgl/Bln/Thn, kembalikan teks aslinya
-  const parts = String(tglStr).split('/');
-  if (parts.length !== 3) return String(tglStr); 
+  const s = String(tglStr).trim();
+  const namaBulan = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
 
-  const mm = parseInt(parts[0]);
-  const dd = parseInt(parts[1]);
-  const yyyy = parts[2];
-  
-  // Jika hasil parsing bukan angka, kembalikan teks aslinya
-  if (isNaN(dd) || isNaN(mm) || isNaN(Number(yyyy))) return String(tglStr); 
+  // 1. Format ISO (YYYY-MM-DD)
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
+    const p = s.split(' ')[0].split('-');
+    const dd = parseInt(p[2]);
+    const mm = parseInt(p[1]);
+    const yyyy = p[0];
+    return `${dd} ${namaBulan[mm - 1]} ${yyyy}`;
+  }
 
-  const namaBulan = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-                     'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
-                     
-  // Jika bulan di luar 1-12, kembalikan teks aslinya
-  if (mm < 1 || mm > 12) return String(tglStr);
+  // 2. Format Indonesia (DD/MM/YYYY atau MM/DD/YYYY)
+  const parts = s.split('/');
+  if (parts.length === 3) {
+    const mm = parseInt(parts[0]);
+    const dd = parseInt(parts[1]);
+    const yyyy = parts[2];
+    if (!isNaN(dd) && !isNaN(mm) && !isNaN(Number(yyyy))) {
+      if (mm >= 1 && mm <= 12) return `${dd} ${namaBulan[mm - 1]} ${yyyy}`;
+    }
+  }
 
-  return `${dd} ${namaBulan[mm - 1]} ${yyyy}`;
+  // 3. Jika isinya cuma angka (misal "5"), kita format jadi "5 Oktober 2026"
+  // (Asumsi bulan dan tahun mengikuti bulan saat ini)
+  if (/^\d+$/.test(s)) {
+    const bulanIni = new Date().getMonth(); 
+    const tahunIni = new Date().getFullYear();
+    return `${s} ${namaBulan[bulanIni]} ${tahunIni}`;
+  }
+
+  return s;
 }
 
 function parseTanggal(str) {
@@ -2087,10 +2101,8 @@ function renderAbsensi() {
     const status = `<span class="${(isNoMasuk || isNoPulang || isTerlambat) ? 'status-warning' : 'status-ok'}">${statusText}</span>`;
     
     // --- PERBAIKAN LOGIKA TANGGAL ---
-    let tglAbsenStr = String(x.hari || '').trim();
-    if (!tglAbsenStr.includes('/') && !tglAbsenStr.includes('-')) {
-        tglAbsenStr = `Tgl ${tglAbsenStr}`;
-    }
+ let tglAbsenStr = String(x.hari || '').trim();
+// JANGAN tambahkan "Tgl " lagi, biarkan fungsi tanggalKeNama yang memformat
     const formatTglFinal = tanggalKeNama(tglAbsenStr);
     // --------------------------------
 
