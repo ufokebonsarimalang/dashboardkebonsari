@@ -2877,8 +2877,9 @@ function logoutPromotor() {
     z-index: 999999; padding: 16px;
     opacity: 0; transition: opacity 0.25s ease;
   `;
-  const cardBg = isLight ? 'linear-gradient(135deg, #ffffff, #fef9ec)' : 'linear-gradient(135deg, rgba(17,24,39,0.98), rgba(35,28,15,0.95))';
-  const cardBorder = isLight ? 'rgba(212,175,55,0.6)' : 'rgba(212,175,55,0.5)';
+   const cardBg = isLight ? 'linear-gradient(135deg, #ffffff, #f0f9ff)' : 'linear-gradient(135deg, rgba(17,24,39,0.98), rgba(35,28,15,0.95))';
+  // Ubah warna border menjadi biru tipis (mengikuti tema Vercel/Tailwind)
+  const cardBorder = isLight ? 'rgba(56, 189, 248, 0.4)' : 'rgba(212,175,55,0.5)'; 
   const titleColor = isLight ? '#111827' : '#ffffff';
   const descColor = isLight ? '#64748b' : '#94a3b8';
   const iconColor = isLight ? '#dc2626' : '#f87171';
