@@ -2034,8 +2034,17 @@ function renderAbsensi() {
   if (entries.length === 0) {
     return `<div class="empty-state">${ICONS.empty}<div class="pesan">Belum ada data absensi untuk promotor ini</div></div>`;
   }
+  
+  // ===== PERHITUNGAN TOTAL (DENGAN FILTER KOSONG) =====
   let totalTerlambat = 0, tidakMasuk = 0, tidakPulang = 0;
+  let validCount = 0;
+  
   entries.forEach(x => {
+    // Filter: Jika semua jam kosong, jangan dihitung
+    const isEmpty = !x.masuk && !x.pulang && !x.istirahat1 && !x.kembali1 && !x.istirahat2 && !x.kembali2;
+    if (isEmpty) return;
+
+    validCount++;
     const isNoMasuk = !x.masuk || String(x.masuk).trim() === "" || x.masuk === "-";
     const isNoPulang = !x.pulang || String(x.pulang).trim() === "" || x.pulang === "-";
     const adaMasuk = !isNoMasuk;
@@ -2045,35 +2054,49 @@ function renderAbsensi() {
     if (isNoMasuk) tidakMasuk++;
     if (isNoPulang) tidakPulang++;
   });
+
   const dataProm = getPromotorTerpilih();
   const namaTampil = escapeHtml(dataProm.namaAbsen || '-');
+  
   let html = `
     <div class="summary-card">
       <h2>${ICONS.trophy} ${namaTampil}</h2>
-      <p>Total Hari Absen : <b>${entries.length}</b></p>
+      <p>Total Hari Absen : <b>${validCount}</b></p>
       <p>Datang Terlambat : <b>${totalTerlambat}</b></p>
       <p>Tidak Finger Masuk : <b style="color:#f87171;">${tidakMasuk}</b></p>
       <p>Tidak Finger Pulang : <b style="color:#f87171;">${tidakPulang}</b></p>
     </div>
     <div class="card-grid">
   `;
+  
+  // ===== GAMBAR KARTU (DENGAN FILTER KOSONG) =====
   entries.forEach(x => {
+    // Filter: Jika semua jam kosong, jangan digambar kartunya
+    const isEmpty = !x.masuk && !x.pulang && !x.istirahat1 && !x.kembali1 && !x.istirahat2 && !x.kembali2;
+    if (isEmpty) return;
+
     const isNoMasuk = !x.masuk || String(x.masuk).trim() === "" || x.masuk === "-";
     const isNoPulang = !x.pulang || String(x.pulang).trim() === "" || x.pulang === "-";
     const isTerlambat = !isNoMasuk && String(x.terlambat || "").toUpperCase() === "YA";
+    
     let statusText = "Lengkap";
     if (isNoMasuk && isNoPulang) statusText = "Tidak Finger";
     else if (isNoMasuk) statusText = "Tidak Finger Masuk";
     else if (isNoPulang) statusText = "Tidak Finger Pulang";
+    
     const status = `<span class="${(isNoMasuk || isNoPulang || isTerlambat) ? 'status-warning' : 'status-ok'}">${statusText}</span>`;
+    
+    // --- PERBAIKAN LOGIKA TANGGAL ---
     let tglAbsenStr = String(x.hari || '').trim();
     if (!tglAbsenStr.includes('/') && !tglAbsenStr.includes('-')) {
-        const hariAngka = tglAbsenStr.padStart(2, '0');
-        tglAbsenStr = `10/${hariAngka}/2026`;
+        tglAbsenStr = `Tgl ${tglAbsenStr}`;
     }
     const formatTglFinal = tanggalKeNama(tglAbsenStr);
+    // --------------------------------
+
     const kelasTambahan = isTerlambat ? 'late' : '';
     const labelTerlambat = isTerlambat ? '<div style="color:#facc15;font-weight:900;margin-top:6px;font-size:11px;letter-spacing:1px;text-shadow:0 0 8px rgba(250,204,21,0.8);">⚠️ TERLAMBAT</div>' : '';
+    
     html += `
       <div class="card ${isNoMasuk || isNoPulang ? 'warning' : 'success'} ${kelasTambahan}">
         <div class="tanggal">
