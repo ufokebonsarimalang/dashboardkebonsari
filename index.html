@@ -1162,11 +1162,11 @@ body.light-mode .summary-card h2 svg {
 
         <div class="fut-right">
             <div class="fut-card">
-                <button type="button" class="login-theme-toggle" onclick="toggleTheme()" title="Ganti tema">
-                    <svg viewBox="0 0 24 24">
-                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-                    </svg>
-                </button>
+               <button type="button" class="login-theme-toggle" onclick="toggleTheme()" title="Ganti tema">
+    <svg viewBox="0 0 24 24" id="icon-theme-login">
+        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+    </svg>
+</button>
 
                 <div class="fut-logo">
                     <img id="logo-app" src="logo.png" alt="Logo" onerror="this.style.display='none'; this.parentElement.innerHTML='<span style=\'font-size:36px;\'>UFO</span>';">
@@ -1568,9 +1568,19 @@ async function tampilkanDashboard() {
 
   document.body.classList.remove('login-active');
   document.body.classList.add('dashboard-active');
+   // --- TAMBAHKAN DI DALAM FUNGSI tampilkanDashboard() ---
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('dashboard').classList.remove('hidden');
 
+  // Sinkronisasi ikon saat pertama kali masuk dashboard
+  const isLightMode = document.body.classList.contains('light-mode');
+  const iconTop = document.getElementById('icon-theme-top');
+  if (iconTop) {
+      const svgSun = '<circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>';
+      const svgMoon = '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>';
+      iconTop.innerHTML = isLightMode ? svgSun : svgMoon;
+  }
+  // ------------------------------------------------------
   await loadPromotorList();
 
    const isAdmin = currentUser.role === 'ADMIN';
@@ -2857,15 +2867,43 @@ function renderDenda() {
 
 /* ===== THEME TOGGLE ===== */
 function toggleTheme() {
+  // 1. Ganti class di body
   const isLight = document.body.classList.toggle('light-mode');
   localStorage.setItem('ufo_theme', isLight ? 'light' : 'dark');
+  
+  // 2. Ambil kedua elemen ikon
+  const iconLogin = document.getElementById('icon-theme-login');
+  const iconTop = document.getElementById('icon-theme-top');
+
+  // 3. Tentukan SVG yang akan dipakai
+  const svgSun = '<circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>';
+  const svgMoon = '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>';
+
+  // 4. Terapkan ke ikon login (jika ada)
+  if (iconLogin) {
+    iconLogin.innerHTML = isLight ? svgSun : svgMoon;
+  }
+  
+  // 5. Terapkan ke ikon dashboard (jika ada)
+  if (iconTop) {
+    iconTop.innerHTML = isLight ? svgSun : svgMoon;
+  }
 }
 window.toggleTheme = toggleTheme;
-
 (function loadSavedTheme() {
   const saved = localStorage.getItem('ufo_theme');
-  if (saved === 'light') {
+  const isLight = saved === 'light';
+  
+  if (isLight) {
     document.body.classList.add('light-mode');
+  }
+
+  // Set ikon awal untuk halaman login
+  const iconLogin = document.getElementById('icon-theme-login');
+  if (iconLogin) {
+    const svgSun = '<circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>';
+    const svgMoon = '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>';
+    iconLogin.innerHTML = isLight ? svgSun : svgMoon;
   }
 })();
 
