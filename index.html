@@ -2103,9 +2103,15 @@ function renderAbsensi() {
   const dataProm = getPromotorTerpilih();
   const namaTampil = escapeHtml(dataProm.namaAbsen || '-');
   
+  // Panggil fungsi deteksi tanggal
+  const periodeAbsen = getPeriodeAbsensiDinamis(entries);
+
   let html = `
     <div class="summary-card">
       <h2>${ICONS.trophy} ${namaTampil}</h2>
+      <p style="margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px dashed rgba(255,255,255,0.1);">
+        📅 Periode : <b>${periodeAbsen.pertama} - ${periodeAbsen.terakhir}</b>
+      </p>
       <p>Total Hari Absen : <b>${validCount}</b></p>
       <p>Datang Terlambat : <b>${totalTerlambat}</b></p>
       <p>Tidak Finger Masuk : <b style="color:#f87171;">${tidakMasuk}</b></p>
