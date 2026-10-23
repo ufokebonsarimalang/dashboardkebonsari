@@ -1203,13 +1203,21 @@ body.light-mode .summary-card h2 svg {
 <!-- ===== DASHBOARD ===== -->
 <div id="dashboard" class="hidden">
     <div class="dashboard-container">
-        <div class="top-bar" id="topBar">
+                <div class="top-bar" id="topBar">
             <div class="user-info">
                 <span class="user-dot"></span>
                 <span id="userNama">-</span>
             </div>
-            <div style="display:flex; gap:8px;">
+            <div style="display:flex; gap:8px; align-items:center;">
                 
+                <!-- TOMBOL GANTI TEMA DITAMBAHKAN DI SINI -->
+                <button class="logout-btn" onclick="toggleTheme()" style="color: #0284c7; background: rgba(2, 132, 199, 0.1); border-color: rgba(2, 132, 199, 0.3);" title="Ganti Tema">
+                    <svg viewBox="0 0 24 24" id="icon-theme-top">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                    </svg>
+                </button>
+                <!-- =================================== -->
+
                 <button class="logout-btn" onclick="logoutPromotor()">
                     <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
                     Keluar
