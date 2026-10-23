@@ -401,6 +401,53 @@ button:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
   </div>
 </div>
 
+<!-- Modal Edit Absensi Manual -->
+<div id="modalEditAbsensi" class="modal-overlay">
+  <div class="modal-box" style="max-width: 500px;">
+    <div class="modal-title" id="editAbsenTitle">Edit Absensi</div>
+    <input type="hidden" id="edit_absen_promotorKey">
+    <input type="hidden" id="edit_absen_hari">
+    
+    <div class="form-grid">
+      <div>
+        <label>Jam Masuk</label>
+        <input type="text" id="edit_absen_masuk" placeholder="Contoh: 08:00">
+      </div>
+      <div>
+        <label>Jam Pulang</label>
+        <input type="text" id="edit_absen_pulang" placeholder="Contoh: 17:00">
+      </div>
+    </div>
+    <div class="form-grid">
+      <div>
+        <label>Istirahat 1</label>
+        <input type="text" id="edit_absen_ist1" placeholder="Contoh: 12:00">
+      </div>
+      <div>
+        <label>Kembali 1</label>
+        <input type="text" id="edit_absen_kem1" placeholder="Contoh: 13:00">
+      </div>
+    </div>
+    <div class="form-grid">
+      <div>
+        <label>Istirahat 2</label>
+        <input type="text" id="edit_absen_ist2" placeholder="Kosongkan jika tidak ada">
+      </div>
+      <div>
+        <label>Kembali 2</label>
+        <input type="text" id="edit_absen_kem2" placeholder="Kosongkan jika tidak ada">
+      </div>
+    </div>
+    
+    <div id="editAbsenMsg" style="margin-top:12px;"></div>
+    
+    <div class="modal-actions" style="margin-top:16px;">
+      <button class="modal-btn modal-btn-cancel" onclick="tutupFormEditAbsensi()">Batal</button>
+      <button class="modal-btn modal-btn-ok-primary" onclick="simpanEditAbsensi()">Simpan</button>
+    </div>
+  </div>
+</div>
+
 <script>
 /* ===== MODAL HELPERS ===== */
 let _modalCallback = null;
@@ -1447,6 +1494,7 @@ function renderTerlambat() {
         </div>
         <div class="kanan">
           ${sudahTerlambat ? '<span class="late-marker">TERLAMBAT</span>' : ''}
+          <button class="btn-warning btn-sm" onclick="bukaFormEditAbsensi('${p.key}', ${hariTerpilih})" style="margin-right: 4px;">Edit</button>
           ${adaFinger ? `<button class="${sudahTerlambat ? 'btn-danger' : 'btn-primary'} btn-sm" onclick="toggleTerlambat('${p.key}', ${hariTerpilih}, ${sudahTerlambat})">${sudahTerlambat ? 'Batal' : 'Tandai'}</button>` : `<button class="btn-soft btn-sm" disabled style="opacity:0.4;">-</button>`}
         </div>
       </div>`;
@@ -1462,6 +1510,70 @@ async function toggleTerlambat(promotorKey, hari, sudahTerlambat) {
     if (snap.exists()) await window.dbUpdate(window.dbRef(window.db, path), { terlambat: sudahTerlambat ? '' : 'YA' });
     renderTab();
   } catch (err) { tampilkanNotif('Gagal', err.message, 'danger'); }
+}
+
+/* ===== FUNGSI EDIT ABSENSI MANUAL (ADMIN) ===== */
+async function bukaFormEditAbsensi(promotorKey, hari) {
+  document.getElementById('editAbsenMsg').innerHTML = '';
+  document.getElementById('edit_absen_promotorKey').value = promotorKey;
+  document.getElementById('edit_absen_hari').value = hari;
+  
+  const p = allMaster[promotorKey];
+  document.getElementById('editAbsenTitle').innerText = `Edit Absensi: ${p ? p.namaAbsen : '-'} (Tgl ${hari})`;
+  
+  const path = `absensi/${BULAN_INI}/${promotorKey}/hari_${hari}`;
+  const snap = await window.dbGet(window.dbRef(window.db, path));
+  
+  if (snap.exists()) {
+    const d = snap.val();
+    document.getElementById('edit_absen_masuk').value = d.masuk || '';
+    document.getElementById('edit_absen_pulang').value = d.pulang || '';
+    document.getElementById('edit_absen_ist1').value = d.istirahat1 || '';
+    document.getElementById('edit_absen_kem1').value = d.kembali1 || '';
+    document.getElementById('edit_absen_ist2').value = d.istirahat2 || '';
+    document.getElementById('edit_absen_kem2').value = d.kembali2 || '';
+  } else {
+    ['edit_absen_masuk', 'edit_absen_pulang', 'edit_absen_ist1', 'edit_absen_kem1', 'edit_absen_ist2', 'edit_absen_kem2'].forEach(id => document.getElementById(id).value = '');
+  }
+  
+  document.getElementById('modalEditAbsensi').classList.add('active');
+}
+
+function tutupFormEditAbsensi() {
+  document.getElementById('modalEditAbsensi').classList.remove('active');
+}
+
+async function simpanEditAbsensi() {
+  const msg = document.getElementById('editAbsenMsg');
+  const promotorKey = document.getElementById('edit_absen_promotorKey').value;
+  const hari = document.getElementById('edit_absen_hari').value;
+  const p = allMaster[promotorKey];
+  
+  const dataAbsen = {
+    nama: p ? p.namaAbsen : '-',
+    hari: Number(hari),
+    masuk: document.getElementById('edit_absen_masuk').value.trim(),
+    pulang: document.getElementById('edit_absen_pulang').value.trim(),
+    istirahat1: document.getElementById('edit_absen_ist1').value.trim(),
+    kembali1: document.getElementById('edit_absen_kem1').value.trim(),
+    istirahat2: document.getElementById('edit_absen_ist2').value.trim(),
+    kembali2: document.getElementById('edit_absen_kem2').value.trim(),
+    terlambat: '', 
+    bulan: getNamaBulanIndo(BULAN_INI)
+  };
+  
+  const path = `absensi/${BULAN_INI}/${promotorKey}/hari_${hari}`;
+  
+  try {
+    await window.dbSet(window.dbRef(window.db, path), dataAbsen);
+    msg.innerHTML = '<div class="alert ok">Data absensi berhasil disimpan!</div>';
+    setTimeout(() => {
+      tutupFormEditAbsensi();
+      renderTab();
+    }, 800);
+  } catch (err) {
+    msg.innerHTML = `<div class="alert err">${err.message}</div>`;
+  }
 }
 
 /* ===== PROMO & SOP ===== */
