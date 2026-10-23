@@ -2029,7 +2029,33 @@ function getPromotorTerpilih() {
         : currentUser.key;
     return allPromotor[targetKey] || currentUser;
 }
+function getPeriodeAbsensiDinamis(entries) {
+  const namaBulan = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+  const today = new Date();
+  const targetBulan = today.getMonth();
+  const targetTahun = today.getFullYear();
+  
+  // Tanggal 1 bulan ini
+  const tglAwal = `1 ${namaBulan[targetBulan]} ${targetTahun}`;
+  
+  // Cari tanggal terakhir yang ada data finger masuknya
+  let maxHari = 0;
+  entries.forEach(x => {
+    const h = parseInt(x.hari);
+    if (!isNaN(h) && h > maxHari) {
+      maxHari = h;
+    }
+  });
 
+  if (maxHari === 0) {
+    return { pertama: tglAwal, terakhir: '-' };
+  }
+
+  return {
+    pertama: tglAwal,
+    terakhir: `${maxHari} ${namaBulan[targetBulan]} ${targetTahun}`
+  };
+}
 /* ===== RENDER: ABSENSI ===== */
 function renderAbsensi() {
   const isAdmin = currentUser.role === 'ADMIN';
