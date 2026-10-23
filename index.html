@@ -1565,10 +1565,11 @@ async function tampilkanDashboard() {
 
   await loadPromotorList();
 
-  const isAdmin = currentUser.role === 'ADMIN';
+   const isAdmin = currentUser.role === 'ADMIN';
   if (isAdmin) {
     promotorTerpilih = null;
-    document.getElementById('promotorSelector').classList.remove('hidden');
+    // SEMBUNYIKAN DROPDOWN SAAT AWAL LOGIN
+    document.getElementById('promotorSelector').classList.add('hidden'); 
     document.getElementById('userNama').innerHTML = 
       `${ICONS.crown} <b>${escapeHtml(currentUser.namaAbsen)}</b> <span class="admin-badge-inline">ADMIN</span>`;
     document.getElementById('topBar').classList.add('admin-mode');
