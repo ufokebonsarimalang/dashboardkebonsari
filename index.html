@@ -417,8 +417,6 @@ body.dashboard-active {
 .tanggal { text-align: center; font-weight: 700; margin-bottom: 12px; 
     color: #ffffff; font-size: 14px; display: flex; align-items: center; 
     justify-content: center; gap: 6px; flex-direction: column; }
-.tanggal svg { width: 15px; height: 15px; stroke: #38bdf8; stroke-width: 2; 
-    fill: none; display: inline-block; }
 .row { display: flex; justify-content: space-between; align-items: center; 
     padding: 8px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.05); 
     color: #9ca3af; font-size: 13px; }
@@ -613,7 +611,6 @@ body.light-mode .tanggal {
   color: #0f172a !important;
   font-weight: 800 !important;
 }
-body.light-mode .tanggal svg { stroke: #0284c7 !important; }
 body.light-mode .card.late .tanggal {
   color: #92400e !important;
   text-shadow: none !important;
@@ -2108,7 +2105,17 @@ function renderAbsensi() {
 
   let html = `
     <div class="summary-card">
-      <h2>${ICONS.trophy} ${namaTampil}</h2>
+      <h2>
+        <svg viewBox="0 0 24 24" style="width:20px;height:20px;stroke:currentColor;stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round;margin-right:8px;vertical-align:middle;">
+          <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/>
+          <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/>
+          <path d="M4 22h16"/>
+          <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/>
+          <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/>
+          <path d="M18 2H6v7a6 6 0 0 0 12 0V2z"/>
+        </svg>
+        ${namaTampil}
+      </h2>
       <p style="margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px dashed rgba(255,255,255,0.1);">
         📅 Periode : <b>${periodeAbsen.pertama} - ${periodeAbsen.terakhir}</b>
       </p>
@@ -2138,8 +2145,8 @@ function renderAbsensi() {
     const status = `<span class="${(isNoMasuk || isNoPulang || isTerlambat) ? 'status-warning' : 'status-ok'}">${statusText}</span>`;
     
     // --- PERBAIKAN LOGIKA TANGGAL ---
- let tglAbsenStr = String(x.hari || '').trim();
-// JANGAN tambahkan "Tgl " lagi, biarkan fungsi tanggalKeNama yang memformat
+    let tglAbsenStr = String(x.hari || '').trim();
+    // JANGAN tambahkan "Tgl " lagi, biarkan fungsi tanggalKeNama yang memformat
     const formatTglFinal = tanggalKeNama(tglAbsenStr);
     // --------------------------------
 
@@ -2149,7 +2156,7 @@ function renderAbsensi() {
     html += `
       <div class="card ${isNoMasuk || isNoPulang ? 'warning' : 'success'} ${kelasTambahan}">
         <div class="tanggal">
-          ${ICONS.calendar} ${formatTglFinal}<br>${status}
+          ${formatTglFinal}<br>${status}
           ${labelTerlambat}
         </div>
         <div class="row"><span>Masuk</span>${isNoMasuk ? '<span class="kosong">TIDAK FINGER</span>' : `<span class="ok">${escapeHtml(x.masuk)}</span>`}</div>
@@ -2214,7 +2221,7 @@ function renderPenjualan() {
     });
     html += `
       <div class="card success">
-        <div class="tanggal">${ICONS.calendar} ${tanggalKeNama(tgl)}</div>
+        <div class="tanggal">${tanggalKeNama(tgl)}</div>
         ${isiProduk}
         <div class="row" style="font-weight:700; font-size:13px; margin-top:6px; border-top:1px solid rgba(255,255,255,0.1); padding-top:6px;">
           <span>Total Hari Ini</span>
@@ -2267,7 +2274,7 @@ function renderUC() {
         const qtyTrans = escapeHtml(x.qty || 1);
         html += `
         <div class="card success">
-            <div class="tanggal">${ICONS.calendar} ${escapeHtml(x.tanggal || '-')}</div>
+            <div class="tanggal">${escapeHtml(x.tanggal || '-')}</div>
             <div style="font-size:12.5px; font-weight:600; line-height:1.3; margin:8px 0; color:#e5e7eb;">${namaProduk}</div>
             <div class="row"><span>Qty</span><span>${qtyTrans}</span></div>
         </div>`;
@@ -2349,7 +2356,7 @@ function renderBrand() {
         });
         html += `
         <div class="card success">
-            <div class="tanggal">${ICONS.calendar} ${tanggalKeNama(tgl)}</div>
+            <div class="tanggal">${tanggalKeNama(tgl)}</div>
             ${isiProduk}
             <div class="row" style="font-weight:700; font-size:13px; margin-top:6px; border-top:1px solid rgba(255,255,255,0.1); padding-top:6px;">
                 <span>Total Hari Ini</span>
