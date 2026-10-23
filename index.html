@@ -868,9 +868,10 @@ body.light-mode .row-perolehan .uc-label svg polygon {
 .btn-google {
   width: 100%;
   padding: 14px 16px;
-  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
-  color: #111827;
-  border: none;
+  background: #0f172a; /* Warna biru gelap (Slate 900) */
+  color: #ffffff;      /* Teks jadi putih */
+  border: 1px solid rgba(56, 189, 248, 0.3); /* Garis tepi biru tipis */
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5); /* Bayangan hitam */
   border-radius: 14px;
   font-size: 14.5px;
   font-weight: 700;
@@ -882,9 +883,6 @@ body.light-mode .row-perolehan .uc-label svg polygon {
   position: relative;
   overflow: hidden;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 
-    0 4px 14px rgba(0, 0, 0, 0.15),
-    0 0 0 1px rgba(255, 255, 255, 0.5) inset;
   animation: fadeUp 0.6s ease-out 0.25s backwards;
   margin-top: 6px;
 }
@@ -904,10 +902,9 @@ body.light-mode .row-perolehan .uc-label svg polygon {
 
 .btn-google:hover {
   transform: translateY(-2px);
-  box-shadow: 
-    0 12px 30px rgba(56, 189, 248, 0.35),
-    0 0 0 1px rgba(255, 255, 255, 0.6) inset;
-  background: linear-gradient(135deg, #ffffff 0%, #eff6ff 100%);
+  background: #1e293b; /* Sedikit lebih terang saat di-hover */
+  border-color: rgba(56, 189, 248, 0.6);
+  box-shadow: 0 12px 30px rgba(56, 189, 248, 0.2); /* Efek glow biru tipis */
 }
 
 .btn-google:active {
@@ -923,7 +920,7 @@ body.light-mode .row-perolehan .uc-label svg polygon {
 .btn-google-icon {
   width: 34px;
   height: 34px;
-  background: #ffffff;
+  background: rgba(255, 255, 255, 0.1);
   border-radius: 10px;
   display: flex;
   align-items: center;
