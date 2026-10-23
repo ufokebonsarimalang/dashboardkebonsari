@@ -1886,7 +1886,7 @@ function tanggalKeNama(tglStr) {
   const s = String(tglStr).trim();
   const namaBulan = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
 
-  // 1. Format ISO (YYYY-MM-DD) - biasanya dari sistem kasir
+  // 1. Format ISO (YYYY-MM-DD) dari sistem kasir baru
   if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
     const p = s.split(' ')[0].split('-');
     const dd = parseInt(p[2]);
@@ -1895,20 +1895,20 @@ function tanggalKeNama(tglStr) {
     return `${dd} ${namaBulan[mm - 1]} ${yyyy}`;
   }
 
-  // 2. Format Indonesia (DD/MM/YYYY) - KITA PAKSA SEPERTI INI
+  // 2. PAKSA FORMAT INDONESIA (TGL/BLN/THN)
   const parts = s.split('/');
   if (parts.length === 3) {
-    // parts[0] = TANGGAL, parts[1] = BULAN, parts[2] = TAHUN
-    const dd = parseInt(parts[0]);
-    const mm = parseInt(parts[1]);
+    const dd = parseInt(parts[0]); // Angka pertama = TANGGAL
+    const mm = parseInt(parts[1]); // Angka kedua = BULAN
     const yyyy = parts[2];
     
+    // Validasi: Bulan harus antara 1 - 12
     if (!isNaN(dd) && !isNaN(mm) && mm >= 1 && mm <= 12) {
       return `${dd} ${namaBulan[mm - 1]} ${yyyy}`;
     }
   }
 
-  // 3. Jika isinya cuma angka (misal "5")
+  // 3. Format cuma angka (misal "5")
   if (/^\d+$/.test(s)) {
     const bulanIni = new Date().getMonth(); 
     const tahunIni = new Date().getFullYear();
@@ -1917,7 +1917,6 @@ function tanggalKeNama(tglStr) {
 
   return s;
 }
-
 function parseTanggal(str) {
   if (!str) return null;
   const s = String(str).trim();
