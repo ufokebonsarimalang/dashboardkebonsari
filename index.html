@@ -1886,33 +1886,38 @@ function tanggalKeNama(tglStr) {
   const s = String(tglStr).trim();
   const namaBulan = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
 
-  // 1. Format ISO (YYYY-MM-DD) dari sistem kasir baru
+  // 1. Format ISO (YYYY-MM-DD) - jika ada
   if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
-    const p = s.split(' ')[0].split('-');
-    const dd = parseInt(p[2]);
-    const mm = parseInt(p[1]);
-    const yyyy = p[0];
-    return `${dd} ${namaBulan[mm - 1]} ${yyyy}`;
-  }
-
-  // 2. PAKSA FORMAT INDONESIA (TGL/BLN/THN)
-  const parts = s.split('/');
-  if (parts.length === 3) {
-    const dd = parseInt(parts[0]); // Angka pertama = TANGGAL
-    const mm = parseInt(parts[1]); // Angka kedua = BULAN
-    const yyyy = parts[2];
-    
-    // Validasi: Bulan harus antara 1 - 12
-    if (!isNaN(dd) && !isNaN(mm) && mm >= 1 && mm <= 12) {
+    const parts = s.split(' ')[0].split('-');
+    const yyyy = parseInt(parts[0]);
+    const mm = parseInt(parts[1]);
+    const dd = parseInt(parts[2]);
+    if (mm >= 1 && mm <= 12) {
       return `${dd} ${namaBulan[mm - 1]} ${yyyy}`;
     }
   }
 
-  // 3. Format cuma angka (misal "5")
-  if (/^\d+$/.test(s)) {
-    const bulanIni = new Date().getMonth(); 
-    const tahunIni = new Date().getFullYear();
-    return `${s} ${namaBulan[bulanIni]} ${tahunIni}`;
+  // 2. Format Kasir (MM/DD/YYYY) -> Bulan di depan, Tanggal di tengah
+  const parts = s.split('/');
+  if (parts.length === 3) {
+    let mm = parseInt(parts[0]); // Angka pertama adalah BULAN (10)
+    let dd = parseInt(parts[1]); // Angka kedua adalah TANGGAL (13, 8, 6)
+    let yyyy = parseInt(parts[2]);
+    
+    // Cek apakah ini benar-benar format kasir (bulan 1-12)
+    if (mm >= 1 && mm <= 12 && !isNaN(dd) && !isNaN(yyyy)) {
+      
+      // JIKA ANGKA PERTAMA > 12 (Misal 22/10/2026), BERARTI INI FORMAT INDONESIA (TGL/BLN)
+      // Kita tukar posisinya
+      if (mm > 12) {
+        let temp = mm;
+        mm = dd;
+        dd = temp;
+      }
+      
+      // Jika angka pertama <= 12 (misal 10/13/2026), kita biarkan format kasir (Bln/Tgl)
+      return `${dd} ${namaBulan[mm - 1]} ${yyyy}`;
+    }
   }
 
   return s;
