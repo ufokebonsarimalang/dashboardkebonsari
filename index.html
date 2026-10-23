@@ -1895,19 +1895,37 @@ function tanggalKeNama(tglStr) {
     return `${dd} ${namaBulan[mm - 1]} ${yyyy}`;
   }
 
-  // 2. Format Indonesia (DD/MM/YYYY atau MM/DD/YYYY)
+  // 2. Format Indonesia (DD/MM/YYYY)
   const parts = s.split('/');
   if (parts.length === 3) {
-    const mm = parseInt(parts[0]);
-    const dd = parseInt(parts[1]);
-    const yyyy = parts[2];
-    if (!isNaN(dd) && !isNaN(mm) && !isNaN(Number(yyyy))) {
-      if (mm >= 1 && mm <= 12) return `${dd} ${namaBulan[mm - 1]} ${yyyy}`;
+    let p1 = parseInt(parts[0]);
+    let p2 = parseInt(parts[1]);
+    let yyyy = parts[2];
+    
+    if (!isNaN(p1) && !isNaN(p2) && !isNaN(Number(yyyy))) {
+      let dd, mm;
+      
+      // DETEKSI PINTAR:
+      // Jika p1 > 12 (misal 22), berarti itu TANGGAL (DD/MM/YYYY)
+      if (p1 > 12) {
+        dd = p1; mm = p2;
+      } 
+      // Jika p2 > 12, berarti itu TANGGAL (MM/DD/YYYY)
+      else if (p2 > 12) {
+        dd = p2; mm = p1;
+      } 
+      // Jika ambigu (dua-duanya <= 12), asumsikan format Indonesia (DD/MM)
+      else {
+        dd = p1; mm = p2;
+      }
+
+      if (mm >= 1 && mm <= 12) {
+        return `${dd} ${namaBulan[mm - 1]} ${yyyy}`;
+      }
     }
   }
 
-  // 3. Jika isinya cuma angka (misal "5"), kita format jadi "5 Oktober 2026"
-  // (Asumsi bulan dan tahun mengikuti bulan saat ini)
+  // 3. Jika isinya cuma angka (misal "5")
   if (/^\d+$/.test(s)) {
     const bulanIni = new Date().getMonth(); 
     const tahunIni = new Date().getFullYear();
