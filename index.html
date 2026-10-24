@@ -118,7 +118,7 @@ body {
 }
 .hidden { display: none !important; }
 
-/* ===== LOGIN SCREEN ===== */
+/* ===== LOGIN SCREEN (FULL SCREEN) ===== */
 body.login-active { 
     margin: 0; padding: 0; background: #050814; 
     height: 100vh; height: 100dvh; overflow: hidden; 
@@ -159,9 +159,18 @@ body.login-active {
     100% { transform: translateY(-100vh) scale(1); opacity: 0; } 
 }
 
-.fut-container { position: relative; z-index: 10; display: grid; 
-    grid-template-columns: 1fr 1fr; gap: 40px; align-items: center; 
-    max-width: 1100px; width: 100%; animation: futFadeIn 0.8s ease-out; }
+/* LAYOUT FULL SCREEN */
+.fut-container { 
+    position: relative; z-index: 10; 
+    display: grid; 
+    grid-template-columns: 1fr 1fr; 
+    gap: 40px; 
+    align-items: center; 
+    width: 100%; 
+    max-width: 100%; 
+    padding: 0 5%; 
+    animation: futFadeIn 0.8s ease-out; 
+}
 @keyframes futFadeIn { 
     from { opacity: 0; transform: translateY(20px); } 
     to { opacity: 1; transform: translateY(0); } 
@@ -193,6 +202,7 @@ body.login-active {
     font-size: 12px; color: #e2e8f0; font-weight: 600; }
 .fut-pulse-dot { width: 8px; height: 8px; background: #22d3ee; 
     border-radius: 50%; animation: futDotPulse 1.5s infinite; }
+
 .fut-right { display: flex; justify-content: center; }
 .fut-logo { width: 110px; height: 110px; margin: 0 auto 20px; 
     background: rgba(14,165,233,0.15); border: 1px solid rgba(34,211,238,0.3); 
@@ -203,7 +213,7 @@ body.login-active {
 /* Responsive Login */
 @media (max-width: 900px) {
     #login-screen { padding: 12px; align-items: flex-start; padding-top: 20px; overflow-y: auto; }
-    .fut-container { grid-template-columns: 1fr; gap: 16px; max-width: 480px; margin: 0 auto; }
+    .fut-container { grid-template-columns: 1fr; gap: 16px; max-width: 480px; margin: 0 auto; padding: 0 16px; }
     .fut-left { padding: 8px; }
     .fut-headline { font-size: 26px; margin-bottom: 4px; }
     .fut-subheadline { font-size: 12px; margin-bottom: 14px; }
@@ -250,8 +260,6 @@ body.dashboard-active {
     display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s ease; }
 .logout-btn:hover { background: rgba(239, 68, 68, 0.2); }
 .logout-btn svg { width: 15px; height: 15px; stroke: currentColor; stroke-width: 2.4; fill: none; }
-
-
 
 .admin-badge-inline { display: inline-block; font-size: 9px; font-weight: 800; 
     background: linear-gradient(135deg, #d4af37, #b8941f); color: #111827; 
@@ -868,10 +876,10 @@ body.light-mode .row-perolehan .uc-label svg polygon {
 .btn-google {
   width: 100%;
   padding: 14px 16px;
-  background: #0f172a; /* Warna biru gelap (Slate 900) */
-  color: #ffffff;      /* Teks jadi putih */
-  border: 1px solid rgba(56, 189, 248, 0.3); /* Garis tepi biru tipis */
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5); /* Bayangan hitam */
+  background: #0f172a;
+  color: #ffffff;
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
   border-radius: 14px;
   font-size: 14.5px;
   font-weight: 700;
@@ -902,9 +910,9 @@ body.light-mode .row-perolehan .uc-label svg polygon {
 
 .btn-google:hover {
   transform: translateY(-2px);
-  background: #1e293b; /* Sedikit lebih terang saat di-hover */
+  background: #1e293b;
   border-color: rgba(56, 189, 248, 0.6);
-  box-shadow: 0 12px 30px rgba(56, 189, 248, 0.2); /* Efek glow biru tipis */
+  box-shadow: 0 12px 30px rgba(56, 189, 248, 0.2);
 }
 
 .btn-google:active {
@@ -988,7 +996,7 @@ body.light-mode .login-hero-sub { color: #475569 !important; }
 
 body.light-mode .btn-google {
   background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
-  color: #111827; /* <--- TAMBAHKAN BARIS INI AGAR TEKS JADI HITAM */
+  color: #111827;
   box-shadow: 
     0 4px 14px rgba(0, 0, 0, 0.08),
     0 0 0 1px rgba(203, 213, 225, 0.6) inset;
@@ -1053,14 +1061,13 @@ body.light-mode .custom-toast {
 /* ===== TEMA BIRU CERAH TOTAL (MODE TERANG) ================== */
 /* ============================================================ */
 
-/* 1. GARIS TEPI KOTAK HEADER & DROPDOWN (Yang masih kuning di screenshot) */
 body.light-mode .top-bar,
 body.light-mode .promotor-selector {
-  border-color: #7dd3fc !important; /* Biru muda */
+  border-color: #7dd3fc !important;
 }
 
 body.light-mode .top-bar.admin-mode {
-  border-color: #38bdf8 !important; /* Biru lebih tegas untuk admin */
+  border-color: #38bdf8 !important;
   background: linear-gradient(135deg, #ffffff, #f0f9ff) !important;
 }
 
@@ -1068,14 +1075,12 @@ body.light-mode .custom-dropdown-trigger {
   border-color: #bae6fd !important;
 }
 
-/* 2. TOMBOL "KEMBALI KE MENU" */
 body.light-mode .back-btn {
-  background: #0ea5e9 !important; /* Biru cerah */
+  background: #0ea5e9 !important;
   color: #ffffff !important;
   box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3) !important;
 }
 
-/* 3. IKON KOTAK MENU (Absensi, Penjualan, dll) */
 body.light-mode .menu-icon {
   background: #e0f2fe !important; 
 }
@@ -1083,7 +1088,6 @@ body.light-mode .menu-icon svg {
   stroke: #0284c7 !important; 
 }
 
-/* 4. KARTU MENU */
 body.light-mode .menu-card {
   border-color: #bae6fd !important;
 }
@@ -1092,7 +1096,6 @@ body.light-mode .menu-card:hover {
   box-shadow: 0 18px 40px rgba(14, 165, 233, 0.15) !important;
 }
 
-/* 5. LABEL ADMIN DI KARTU & HEADER */
 body.light-mode .menu-card.admin-only::after {
   background: #0ea5e9 !important;
   color: #ffffff !important;
@@ -1103,7 +1106,6 @@ body.light-mode .admin-badge-inline {
   box-shadow: 0 0 10px rgba(14, 165, 233, 0.4) !important;
 }
 
-/* 6. DROPDOWN (PILIH PROMOTOR) */
 body.light-mode .promotor-selector label { 
   color: #0284c7 !important; 
 }
@@ -1120,7 +1122,6 @@ body.light-mode .custom-dropdown-menu .dd-option.selected::before {
   box-shadow: 0 0 8px #0284c7 !important;
 }
 
-/* 7. JUDUL RINGKASAN (Summary Card) */
 body.light-mode .summary-card h2 { 
   color: #0284c7 !important; 
 }
