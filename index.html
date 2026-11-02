@@ -1257,7 +1257,7 @@ let infoData = { promo: [], rules: [] };
 let currentUser = null;
 let currentMenu = null;
 let promotorTerpilih = null;
-
+let absensiBulanSumber = null; // { bulan: 0-based, tahun } — sumber data absensi terakhir
 /* ===== FUNGSI TOAST KUSTOM ===== */
 function showToast(pesan, tipe = 'info') {
   const oldToast = document.querySelector('.custom-toast');
@@ -1618,12 +1618,22 @@ window.tampilkanDashboard = tampilkanDashboard;
 /* ===== LOADER DATA (pakai cache + get) ===== */
 async function muatDataBulanIni(forceRefresh = false) {
   const isAdminRole = currentUser.role === 'ADMIN';
+  const now = new Date();
 
-  // --- Penjualan ---
+  const kodeBulan = (d) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+
+  const bulanIni  = new Date(now.getFullYear(), now.getMonth(), 1);
+  const bulanLalu = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+
+  // ================= PENJUALAN (hanya bulan berjalan) =================
+  const kodePenjualan = kodeBulan(bulanIni);
   const pathProm = isAdminRole
-    ? 'penjualan/2026-10/all'
-    : 'penjualan/2026-10/per_promotor/' + currentUser.key;
-  const cacheKeyProm = isAdminRole ? 'penjualan_2026-10_all' : 'penjualan_2026-10_' + currentUser.key;
+    ? `penjualan/${kodePenjualan}/all`
+    : `penjualan/${kodePenjualan}/per_promotor/${currentUser.key}`;
+  const cacheKeyProm = isAdminRole
+    ? `penjualan_${kodePenjualan}_all`
+    : `penjualan_${kodePenjualan}_${currentUser.key}`;
 
   let dataPenjualan = forceRefresh ? null : cacheGet(cacheKeyProm);
   if (!dataPenjualan) {
@@ -1635,30 +1645,6 @@ async function muatDataBulanIni(forceRefresh = false) {
           if (item && item.namaSales) allPenjualan.push(item);
         });
       }
-      // Fallback ke root (kalau data belum dimigrasi)
-      if (allPenjualan.length === 0) {
-        const snapRoot = await window.dbGet(window.dbRef(window.db, 'penjualan/2026-10'));
-        if (snapRoot.exists()) {
-          const raw = snapRoot.val();
-          const arr = [];
-          Object.keys(raw).forEach(k => {
-            if (k === 'all' || k === 'per_promotor') return;
-            const item = raw[k];
-            if (item && item.namaSales) arr.push(item);
-          });
-          if (!isAdminRole) {
-            const dataP = allPromotor[currentUser.key] || {};
-            const ns = String(dataP.namaSales || '').trim().toUpperCase();
-            const na = String(dataP.namaAbsen || '').trim().toUpperCase();
-            allPenjualan = arr.filter(x => {
-              const xs = String(x.namaSales || '').trim().toUpperCase();
-              return (ns && xs === ns) || (na && (xs.includes(na) || na.includes(xs)));
-            });
-          } else {
-            allPenjualan = arr;
-          }
-        }
-      }
       cacheSet(cacheKeyProm, allPenjualan);
     } catch (err) {
       console.error('Gagal load penjualan:', err);
@@ -1668,49 +1654,84 @@ async function muatDataBulanIni(forceRefresh = false) {
     allPenjualan = dataPenjualan;
   }
 
-  // --- Absensi ---
-   // --- Absensi ---
+  // ================= ABSENSI (fallback bulan lalu) =================
   const keyUser = isAdminRole ? null : currentUser.key;
-  const cacheKey = keyUser ? 'absensi_2026-10_' + keyUser : 'absensi_2026-10_all'; // Ubah nama cache admin
+  const cacheKey = keyUser ? `absensi_${keyUser}` : `absensi_all`;
 
   let dataAbsensi = forceRefresh ? null : cacheGet(cacheKey);
   if (!dataAbsensi) {
     try {
-      if (isAdminRole) {
-        // JIKA ADMIN: Ambil data absensi satu per satu untuk setiap promotor
-        allAbsensiAll = {};
-        const listPromotorKeys = Object.keys(allPromotor);
-        
-        // Gunakan Promise.all agar pengambilan data berjalan paralel (lebih cepat)
-        const promises = listPromotorKeys.map(async (keyProm) => {
+      let hasil = {};
+      let bulanSumber = null;
+
+      for (const kandidat of [bulanIni, bulanLalu]) {
+        const kode = kodeBulan(kandidat);
+        let adaData = false;
+        const temp = {};
+
+        if (isAdminRole) {
+          const listPromotorKeys = Object.keys(allPromotor);
+          await Promise.all(listPromotorKeys.map(async (keyProm) => {
+            try {
+              const snap = await window.dbGet(
+                window.dbRef(window.db, `absensi/${kode}/${keyProm}`)
+              );
+              if (snap.exists()) {
+                const val = snap.val();
+                const adaEntri = Object.values(val).some(it =>
+                  it && (it.masuk || it.pulang || it.istirahat1 ||
+                         it.kembali1 || it.istirahat2 || it.kembali2)
+                );
+                if (adaEntri) {
+                  temp[keyProm] = val;
+                  adaData = true;
+                }
+              }
+            } catch (err) {
+              console.warn('Gagal ambil absensi ' + keyProm, err);
+            }
+          }));
+        } else {
           try {
-            const snap = await window.dbGet(window.dbRef(window.db, 'absensi/2026-10/' + keyProm));
+            const snap = await window.dbGet(
+              window.dbRef(window.db, `absensi/${kode}/${keyUser}`)
+            );
             if (snap.exists()) {
-              allAbsensiAll[keyProm] = snap.val();
+              const val = snap.val();
+              const adaEntri = Object.values(val).some(it =>
+                it && (it.masuk || it.pulang || it.istirahat1 ||
+                       it.kembali1 || it.istirahat2 || it.kembali2)
+              );
+              if (adaEntri) {
+                temp[keyUser] = val;
+                adaData = true;
+              }
             }
           } catch (err) {
-            console.warn("Gagal ambil absensi promotor " + keyProm, err);
+            console.warn('Gagal ambil absensi', err);
           }
-        });
-        
-        await Promise.all(promises);
-        
-      } else {
-        // JIKA PROMOTOR BIASA: Ambil data dirinya sendiri
-        const snap = await window.dbGet(window.dbRef(window.db, 'absensi/2026-10/' + keyUser));
-        allAbsensiAll = {};
-        allAbsensiAll[keyUser] = snap.exists() ? snap.val() : {};
+        }
+
+        if (adaData) {
+          hasil = temp;
+          bulanSumber = { bulan: kandidat.getMonth(), tahun: kandidat.getFullYear() };
+          break;
+        }
       }
-      cacheSet(cacheKey, allAbsensiAll);
+
+      allAbsensiAll = hasil;
+      absensiBulanSumber = bulanSumber;
+      cacheSet(cacheKey, { data: hasil, sumber: bulanSumber });
     } catch (err) {
       console.error('Gagal load absensi:', err);
       allAbsensiAll = {};
+      absensiBulanSumber = null;
     }
   } else {
-    allAbsensiAll = dataAbsensi;
+    allAbsensiAll = dataAbsensi.data || {};
+    absensiBulanSumber = dataAbsensi.sumber || null;
   }
 
-  // --- Set allAbsensi sesuai user/admin ---
   if (isAdminRole && promotorTerpilih) {
     allAbsensi = allAbsensiAll[promotorTerpilih] || {};
   } else if (!isAdminRole) {
@@ -2079,81 +2100,28 @@ function getPromotorTerpilih() {
 function getPeriodeAbsensiDinamis(entries) {
   const namaBulan = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
 
-  // ===== 1. Tentukan siklus payroll berdasarkan HARI INI =====
-  // Aturan: reset tiap tanggal 11.
-  // - Jika tgl >= 11  -> siklus: tgl 11 bulan ini  s/d tgl 10 bulan depan
-  // - Jika tgl <= 10  -> siklus: tgl 11 bulan lalu s/d tgl 10 bulan ini
-  const today = new Date();
-  const tglHariIni = today.getDate();
-  const blnIni = today.getMonth();
-  const thnIni = today.getFullYear();
-
-  let startDate, endDate;
-  if (tglHariIni >= 11) {
-    startDate = new Date(thnIni, blnIni, 11);
-    endDate   = new Date(thnIni, blnIni + 1, 10);
-  } else {
-    startDate = new Date(thnIni, blnIni - 1, 11);
-    endDate   = new Date(thnIni, blnIni, 10);
-  }
-
-  // ===== 2. Jika belum ada data -> periode kosong =====
-  if (!entries || entries.length === 0) {
+  if (!entries || entries.length === 0 || !absensiBulanSumber) {
     return { pertama: '-', terakhir: '-' };
   }
 
-  // ===== 3. Kumpulkan entri yang hari-nya valid di dalam siklus =====
-  // Karena entri hanya punya 'hari' (1..31) tanpa bulan/tahun,
-  // kita validasi: hari harus ada di salah satu bulan yang disentuh siklus.
-  const bulanSiklus = [];
-  // Iterasi semua bulan dari startDate s/d endDate
-  let cur = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
-  while (cur <= endDate) {
-    bulanSiklus.push({ bulan: cur.getMonth(), tahun: cur.getFullYear() });
-    cur = new Date(cur.getFullYear(), cur.getMonth() + 1, 1);
-  }
+  const { bulan, tahun } = absensiBulanSumber;
 
-  // Cek apakah suatu tanggal (hari) jatuh di dalam rentang siklus
-  function isHariDalamSiklus(hari) {
-    return bulanSiklus.some(({ bulan, tahun }) => {
-      const d = new Date(tahun, bulan, hari);
-      // Pastikan tanggal valid (misal 31 Feb -> jadi 3 Mar, harus ditolak)
-      if (d.getMonth() !== bulan) return false;
-      return d >= startDate && d <= endDate;
-    });
-  }
-
-  let tanggalValid = [];
+  let maxHari = null;
   entries.forEach(x => {
     const h = parseInt(x.hari);
-    if (isNaN(h)) return;
-    if (!isHariDalamSiklus(h)) return;
-
-    // Cari tanggal aktual (bulan/tahun) yang cocok
-    for (const { bulan, tahun } of bulanSiklus) {
-      const d = new Date(tahun, bulan, h);
-      if (d.getMonth() === bulan && d >= startDate && d <= endDate) {
-        tanggalValid.push(d);
-        break;
-      }
-    }
+    if (isNaN(h) || h < 1 || h > 31) return;
+    const d = new Date(tahun, bulan, h);
+    if (d.getMonth() !== bulan) return;
+    if (maxHari === null || h > maxHari) maxHari = h;
   });
 
-  if (tanggalValid.length === 0) {
+  if (maxHari === null) {
     return { pertama: '-', terakhir: '-' };
   }
 
-  // ===== 4. Ambil min & max =====
-  const minDate = new Date(Math.min(...tanggalValid.map(d => d.getTime())));
-  const maxDate = new Date(Math.max(...tanggalValid.map(d => d.getTime())));
-
-  // ===== 5. Format =====
-  const fmt = (d) => `${String(d.getDate()).padStart(2,'0')} ${namaBulan[d.getMonth()]} ${d.getFullYear()}`;
-
-  // Siklus lengkap (start s/d end) lebih informatif untuk user
   return {
-    pertama: fmt(startDate),
-    terakhir: fmt(endDate)
+    pertama: `1 ${namaBulan[bulan]} ${tahun}`,
+    terakhir: `${maxHari} ${namaBulan[bulan]} ${tahun}`
   };
 }
 /* ===== RENDER: ABSENSI ===== */
