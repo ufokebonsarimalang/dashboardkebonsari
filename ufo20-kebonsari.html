@@ -509,7 +509,7 @@ let allPenjualan = {};
 let allAbsensi = {};
 let allPromo = [];
 let allRules = [];
-const BULAN_INI = getBulanIni();
+let bulanUploadTerpilih = getBulanIni(); // <-- TAMBAHKAN INI
 
 function sanitizeKey(nama) { return String(nama || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_'); }
 
@@ -699,10 +699,21 @@ function renderDash() {
 /* ===== UPLOAD ===== */
 function renderUpload() {
   return `
-    <div class="alert warn"><svg viewBox="0 0 24 24" style="width:18px;height:18px;stroke:currentColor;stroke-width:2.5;fill:none;flex-shrink:0;"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> Upload masuk ke folder bulan: <b>${BULAN_INI}</b> (${getNamaBulanIndo(BULAN_INI)})</div>
+    <!-- TAMBAHKAN INPUT BULAN DI SINI -->
+    <div class="card">
+      <h3><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> Pilih Bulan Upload</h3>
+      <p>Pilih bulan tujuan <b>sebelum</b> meng-upload. Pastikan sesuai dengan isi file Excel Anda.</p>
+      <input type="month" id="pilihBulanUpload" value="${bulanUploadTerpilih}" style="padding:12px; font-size:16px;" onchange="gantiBulanUpload(this.value)">
+    </div>
+
+    <div class="alert warn" style="margin-top: 12px;">
+      <svg viewBox="0 0 24 24" style="width:18px;height:18px;stroke:currentColor;stroke-width:2.5;fill:none;flex-shrink:0;"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> 
+      Data akan masuk ke folder: <b id="labelBulanUpload">${bulanUploadTerpilih}</b>
+    </div>
     
     <div class="card">
       <h3><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> 1. Upload File Finger</h3>
+      <!-- ... (SISA KODE DI BAWAHNYA TETAP SAMA) ... -->
       <p>Upload file absen dari mesin finger (sheet <b>Punch</b> / <b>RAW</b>).</p>
       <div class="file-wrap" onclick="document.getElementById('fileFinger').click()">
         <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
@@ -734,6 +745,17 @@ function renderUpload() {
       <div id="penjualanInfo" style="margin-top:16px;"></div>
     </div>
   `;
+}
+  function gantiBulanUpload(val) {
+  bulanUploadTerpilih = val;
+  document.getElementById('labelBulanUpload').innerText = val;
+  // Bersihkan info upload sebelumnya jika ada
+  const infoFinger = document.getElementById('fingerInfo');
+  const infoMaster = document.getElementById('masterInfo');
+  const infoPenjualan = document.getElementById('penjualanInfo');
+  if (infoFinger) infoFinger.innerHTML = '';
+  if (infoMaster) infoMaster.innerHTML = '';
+  if (infoPenjualan) infoPenjualan.innerHTML = '';
 }
 
 function handleFileFinger(e) {
