@@ -1978,39 +1978,46 @@ function getPeriodeRentangDinamis() {
   if (!semuaPenjualan || semuaPenjualan.length === 0) return { pertama: '-', terakhir: '-' };
 
   const today = new Date();
-  const targetBulan = today.getMonth(); // 10 = November
-  const targetTahun = today.getFullYear();
+  const targetBulan = today.getMonth(); // 10 (November)
+  const targetTahun = today.getFullYear(); // 2026
   const tanggalValid = [];
 
   semuaPenjualan.forEach(x => {
     if (!x || !x.tanggal) return;
     const s = String(x.tanggal).trim();
-    let tgl = null, bln = null, thn = null;
-
+    
+    // Baca format ISO (2026-11-01)
     if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
       const p = s.split(' ')[0].split('-');
-      thn = Number(p[0]); bln = Number(p[1]); tgl = Number(p[2]);
-    } else {
-      const m = s.split('/');
-      if (m.length === 3) {
-        const a = Number(m[0]), b = Number(m[1]), c = Number(m[2]);
-        if (!isNaN(a) && !isNaN(b) && !isNaN(c)) {
-          // Paksa Baca Format Kasir: Bulan/Tanggal/Tahun
-          bln = a; tgl = b; thn = c; 
-        }
+      const thn = Number(p[0]), bln = Number(p[1]), tgl = Number(p[2]);
+      if (thn === targetTahun && bln === targetBulan + 1) {
+        tanggalValid.push({ tgl, bln, thn });
       }
+      return;
     }
 
-    if (tgl && bln && thn && thn === targetTahun && bln === targetBulan + 1) {
-      tanggalValid.push({ tgl, bln, thn });
+    // Baca format Indonesia / Kasir (01/11/2026)
+    const m = s.split('/');
+    if (m.length === 3) {
+      // Paksa baca format DD/MM/YYYY (Tanggal dulu, baru Bulan)
+      const tgl = Number(m[0]); 
+      const bln = Number(m[1]); 
+      const thn = Number(m[2]); 
+
+      if (thn === targetTahun && bln === targetBulan + 1 && tgl >= 1 && tgl <= 31) {
+        tanggalValid.push({ tgl, bln, thn });
+      }
     }
   });
 
   if (tanggalValid.length === 0) return { pertama: '-', terakhir: '-' };
 
   tanggalValid.sort((a, b) => a.tgl - b.tgl);
+  const min = tanggalValid[0];
+  const max = tanggalValid[tanggalValid.length - 1];
+
   const fmt = (d) => `${String(d.tgl).padStart(2, '0')} ${namaBulan[d.bln - 1]} ${d.thn}`;
-  return { pertama: fmt(tanggalValid[0]), terakhir: fmt(tanggalValid[tanggalValid.length - 1]) };
+  return { pertama: fmt(min), terakhir: fmt(max) };
 }
 function getDataSaya() {
     if (!currentUser) return [];
