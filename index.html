@@ -1977,8 +1977,8 @@ function getPeriodeRentangDinamis() {
   }
 
   const today = new Date();
-  const targetBulan = today.getMonth();
-  const targetTahun = today.getFullYear();
+  const targetBulan = today.getMonth(); // 10 (November)
+  const targetTahun = today.getFullYear(); // 2026
   const tanggalValid = [];
 
   semuaPenjualan.forEach(x => {
@@ -1986,28 +1986,37 @@ function getPeriodeRentangDinamis() {
     const s = String(x.tanggal).trim();
     let tgl = null, bln = null, thn = null;
 
-    // Baca format ISO (YYYY-MM-DD)
-    const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
-    if (iso) {
-      thn = Number(iso[1]); bln = Number(iso[2]); tgl = Number(iso[3]);
-    } else {
-      // Baca format Kasir (MM/DD/YYYY) atau Indonesia (DD/MM/YYYY)
+    // 1. Format ISO / Google Form (YYYY-MM-DD)
+    if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
+      const p = s.split(' ')[0].split('-');
+      thn = Number(p[0]); bln = Number(p[1]); tgl = Number(p[2]);
+    } 
+    // 2. Format Slash (Kasir MM/DD/YYYY atau Indonesia DD/MM/YYYY)
+    else {
       const m = s.split('/');
       if (m.length === 3) {
         const a = Number(m[0]), b = Number(m[1]), c = Number(m[2]);
         if (!isNaN(a) && !isNaN(b) && !isNaN(c)) {
-          if (a <= 12 && b >= 1 && b <= 31) { bln = a; tgl = b; thn = c; }
-          else if (a > 12 && b <= 12) { tgl = a; bln = b; thn = c; }
+          // Jika angka pertama > 12, berarti Indonesia (Tgl/Bln/Thn)
+          if (a > 12) { tgl = a; bln = b; thn = c; }
+          // Jika angka kedua > 12, berarti Kasir (Bln/Tgl/Thn)
+          else if (b > 12) { bln = a; tgl = b; thn = c; }
+          // Jika dua-duanya <= 12 (misal 11/01/2026), kita ikuti format Kasir (Bln/Tgl/Thn)
+          else { bln = a; tgl = b; thn = c; }
         }
       }
     }
 
     if (tgl === null || bln === null || thn === null) return;
+
+    // Cek apakah ini data bulan ini (November)
     if (thn !== targetTahun) return;
     if (bln !== targetBulan + 1) return;
+
     tanggalValid.push({ tgl, bln, thn });
   });
 
+  // Jika setelah difilter ternyata tidak ada data November yang valid
   if (tanggalValid.length === 0) {
     return { pertama: '-', terakhir: '-' };
   }
@@ -2015,11 +2024,11 @@ function getPeriodeRentangDinamis() {
   tanggalValid.sort((a, b) => a.tgl - b.tgl);
   const min = tanggalValid[0];
   const max = tanggalValid[tanggalValid.length - 1];
+
   const fmt = (d) => `${String(d.tgl).padStart(2, '0')} ${namaBulan[d.bln - 1]} ${d.thn}`;
 
   return { pertama: fmt(min), terakhir: fmt(max) };
 }
-
 function getDataSaya() {
     if (!currentUser) return [];
     const targetKey = (currentUser.role === 'ADMIN' && promotorTerpilih) 
