@@ -1975,42 +1975,80 @@ function parseTanggal(str) {
   const d = new Date(part3, bln - 1, tgl);
   return isNaN(d.getTime()) ? null : d;
 }
- function getPeriodeRentangDinamis() {
-  const semuaPenjualan = typeof allPenjualan !== 'undefined' ? allPenjualan : [];
+function getPeriodeRentangDinamis() {
   const namaBulan = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
-  
-  // Jika belum ada data sama sekali -> periode kosong
+  const semuaPenjualan = typeof allPenjualan !== 'undefined' ? allPenjualan : [];
+
+  // Tidak ada data sama sekali
   if (!semuaPenjualan || semuaPenjualan.length === 0) {
     return { pertama: '-', terakhir: '-' };
   }
 
   const today = new Date();
-  const targetBulan = today.getMonth(); 
+  const targetBulan = today.getMonth();      // 0-based
   const targetTahun = today.getFullYear();
-  
-  // Cari tanggal paling awal & paling akhir KHUSUS di bulan berjalan
-  let minDate = null;
-  let maxDate = null;
+  const kodeBulan = String(targetBulan + 1).padStart(2, '0'); // "11"
+  const kodeTahun = String(targetTahun);                       // "2026"
+
+  // Kumpulkan tanggal yang VALID bulan berjalan.
+  // Format yang didukung (dicek via string, bukan parseTanggal):
+  //  - ISO:  "2026-11-05"
+  //  - Kasir MM/DD/YYYY: "11/05/2026"  -> bulan = 11, tanggal = 05
+  //  - Indonesia DD/MM/YYYY: "05/11/2026" -> bulan = 11, tanggal = 05
+  const tanggalValid = [];
+
   semuaPenjualan.forEach(x => {
     if (!x || !x.tanggal) return;
-    const d = parseTanggal(x.tanggal);
-    if (d && d.getMonth() === targetBulan && d.getFullYear() === targetTahun) {
-      if (!minDate || d < minDate) minDate = d;
-      if (!maxDate || d > maxDate) maxDate = d;
+    const s = String(x.tanggal).trim();
+
+    let tgl = null, bln = null, thn = null;
+
+    // ISO
+    const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (iso) {
+      thn = Number(iso[1]);
+      bln = Number(iso[2]);
+      tgl = Number(iso[3]);
+    } else {
+      // Slash
+      const m = s.split('/');
+      if (m.length === 3) {
+        const a = Number(m[0]), b = Number(m[1]), c = Number(m[2]);
+        if (!isNaN(a) && !isNaN(b) && !isNaN(c)) {
+          // Kasir MM/DD/YYYY: bulan di depan, HARUS 1..12 dan tanggal 1..31
+          // Indonesia DD/MM/YYYY: tanggal di depan, biasanya >12 atau bulan <=12
+          // Aturan aman: jika a <= 12 dan b <= 31 -> anggap KASIR (MM/DD)
+          //              jika a > 12  dan b <= 12 -> anggap INDONESIA (DD/MM)
+          if (a <= 12 && b >= 1 && b <= 31) {
+            bln = a; tgl = b; thn = c;   // kasir
+          } else if (a > 12 && b <= 12) {
+            tgl = a; bln = b; thn = c;   // indonesia
+          }
+        }
+      }
     }
+
+    if (tgl === null || bln === null || thn === null) return;
+    if (thn !== targetTahun) return;
+    if (bln !== targetBulan + 1) return;
+
+    tanggalValid.push({ tgl, bln, thn });
   });
-  
-  // Jika tidak ada data di bulan berjalan -> periode kosong
-  if (!minDate || !maxDate) {
+
+  // Tidak ada data di bulan berjalan -> "-"
+  if (tanggalValid.length === 0) {
     return { pertama: '-', terakhir: '-' };
   }
-  
-  const tglAwalStr  = `${String(minDate.getDate()).padStart(2,'0')} ${namaBulan[minDate.getMonth()]} ${minDate.getFullYear()}`;
-  const tglAkhirStr = `${String(maxDate.getDate()).padStart(2,'0')} ${namaBulan[maxDate.getMonth()]} ${maxDate.getFullYear()}`;
-  
+
+  tanggalValid.sort((a, b) => a.tgl - b.tgl);
+  const min = tanggalValid[0];
+  const max = tanggalValid[tanggalValid.length - 1];
+
+  const fmt = (d) => `${String(d.tgl).padStart(2,'0')} ${namaBulan[d.bln - 1]} ${d.thn}`;
+
   return {
-    pertama: tglAwalStr,
-    terakhir: tglAkhirStr
+    pertama: fmt(min),
+    terakhir: fmt(max)
   };
 }
 
@@ -2182,7 +2220,7 @@ function renderAbsensi() {
         ${namaTampil}
       </h2>
       <p style="margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px dashed rgba(255,255,255,0.1);">
-        📅 Periode : <b>${periodeAbsen.pertama} - ${periodeAbsen.terakhir}</b>
+        Periode : <b>${periodeAbsen.pertama} - ${periodeAbsen.terakhir}</b>
       </p>
       <p>Total Hari Absen : <b>${validCount}</b></p>
       <p>Datang Terlambat : <b>${totalTerlambat}</b></p>
