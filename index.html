@@ -2051,8 +2051,8 @@ function getPeriodeAbsensiDinamis(entries) {
     return { pertama: '-', terakhir: '-' };
   }
 
-  // 1. Ambil bulan dan tahun dari sumber data (bukan dari tanggal hari ini)
-  let bln = 9; // Default Oktober (index 9)
+  // Ambil bulan dan tahun dari data Firebase yang terbaca
+  let bln = 9; // Default Oktober
   let thn = new Date().getFullYear(); 
 
   if (typeof absensiBulanSumber !== 'undefined' && absensiBulanSumber) {
@@ -2060,14 +2060,12 @@ function getPeriodeAbsensiDinamis(entries) {
     thn = absensiBulanSumber.tahun;
   }
 
-  // 2. Cari tanggal terakhir (max hari) dari data
   let maxHari = 1;
   entries.forEach(x => {
     const h = parseInt(x.hari);
     if (!isNaN(h) && h > maxHari) maxHari = h;
   });
 
-  // 3. Format hasil
   return {
     pertama: `1 ${namaBulan[bln]} ${thn}`,
     terakhir: `${maxHari} ${namaBulan[bln]} ${thn}`
