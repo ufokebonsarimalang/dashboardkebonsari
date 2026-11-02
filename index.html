@@ -1979,47 +1979,40 @@ function parseTanggal(str) {
   const semuaPenjualan = typeof allPenjualan !== 'undefined' ? allPenjualan : [];
   const namaBulan = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
   
-  // 1. Otomatis mendeteksi bulan & tahun berjalan saat ini
+  // Jika belum ada data sama sekali -> periode kosong
+  if (!semuaPenjualan || semuaPenjualan.length === 0) {
+    return { pertama: '-', terakhir: '-' };
+  }
+
   const today = new Date();
   const targetBulan = today.getMonth(); 
   const targetTahun = today.getFullYear();
   
-  // 2. Tentukan tanggal awal (Tanggal 1 bulan ini)
-  const tglAwal = `1 ${namaBulan[targetBulan]} ${targetTahun}`;
-  
-  // Jika belum ada data sama sekali
-  if (!semuaPenjualan || semuaPenjualan.length === 0) {
-    return { pertama: tglAwal, terakhir: '-' };
-  }
-  
-  // 3. Cari tanggal paling besar (terakhir) khusus di bulan berjalan
+  // Cari tanggal paling awal & paling akhir KHUSUS di bulan berjalan
+  let minDate = null;
   let maxDate = null;
   semuaPenjualan.forEach(x => {
     if (!x || !x.tanggal) return;
     const d = parseTanggal(x.tanggal);
-    
-    // Pastikan hanya memproses tanggal yang bulan & tahunnya sama dengan bulan ini
     if (d && d.getMonth() === targetBulan && d.getFullYear() === targetTahun) {
-      if (!maxDate || d > maxDate) {
-        maxDate = d;
-      }
+      if (!minDate || d < minDate) minDate = d;
+      if (!maxDate || d > maxDate) maxDate = d;
     }
   });
   
-  // Jika tidak ada tanggal yang lolos filter
-  if (!maxDate) {
-    return { pertama: tglAwal, terakhir: '-' };
+  // Jika tidak ada data di bulan berjalan -> periode kosong
+  if (!minDate || !maxDate) {
+    return { pertama: '-', terakhir: '-' };
   }
   
-  // 4. Format tanggal terakhir menjadi teks (contoh: "19 Oktober 2026")
-  const tglTerakhirStr = `${String(maxDate.getDate()).padStart(2, '0')} ${namaBulan[maxDate.getMonth()]} ${maxDate.getFullYear()}`;
+  const tglAwalStr  = `${String(minDate.getDate()).padStart(2,'0')} ${namaBulan[minDate.getMonth()]} ${minDate.getFullYear()}`;
+  const tglAkhirStr = `${String(maxDate.getDate()).padStart(2,'0')} ${namaBulan[maxDate.getMonth()]} ${maxDate.getFullYear()}`;
   
   return {
-    pertama: tglAwal,
-    terakhir: tglTerakhirStr
+    pertama: tglAwalStr,
+    terakhir: tglAkhirStr
   };
-} 
-
+}
 
 function getDataSaya() {
     if (!currentUser) return [];
@@ -2046,30 +2039,83 @@ function getPromotorTerpilih() {
     return allPromotor[targetKey] || currentUser;
 }
 function getPeriodeAbsensiDinamis(entries) {
-  const namaBulan = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+  const namaBulan = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+
+  // ===== 1. Tentukan siklus payroll berdasarkan HARI INI =====
+  // Aturan: reset tiap tanggal 11.
+  // - Jika tgl >= 11  -> siklus: tgl 11 bulan ini  s/d tgl 10 bulan depan
+  // - Jika tgl <= 10  -> siklus: tgl 11 bulan lalu s/d tgl 10 bulan ini
   const today = new Date();
-  const targetBulan = today.getMonth();
-  const targetTahun = today.getFullYear();
-  
-  // Tanggal 1 bulan ini
-  const tglAwal = `1 ${namaBulan[targetBulan]} ${targetTahun}`;
-  
-  // Cari tanggal terakhir yang ada data finger masuknya
-  let maxHari = 0;
+  const tglHariIni = today.getDate();
+  const blnIni = today.getMonth();
+  const thnIni = today.getFullYear();
+
+  let startDate, endDate;
+  if (tglHariIni >= 11) {
+    startDate = new Date(thnIni, blnIni, 11);
+    endDate   = new Date(thnIni, blnIni + 1, 10);
+  } else {
+    startDate = new Date(thnIni, blnIni - 1, 11);
+    endDate   = new Date(thnIni, blnIni, 10);
+  }
+
+  // ===== 2. Jika belum ada data -> periode kosong =====
+  if (!entries || entries.length === 0) {
+    return { pertama: '-', terakhir: '-' };
+  }
+
+  // ===== 3. Kumpulkan entri yang hari-nya valid di dalam siklus =====
+  // Karena entri hanya punya 'hari' (1..31) tanpa bulan/tahun,
+  // kita validasi: hari harus ada di salah satu bulan yang disentuh siklus.
+  const bulanSiklus = [];
+  // Iterasi semua bulan dari startDate s/d endDate
+  let cur = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+  while (cur <= endDate) {
+    bulanSiklus.push({ bulan: cur.getMonth(), tahun: cur.getFullYear() });
+    cur = new Date(cur.getFullYear(), cur.getMonth() + 1, 1);
+  }
+
+  // Cek apakah suatu tanggal (hari) jatuh di dalam rentang siklus
+  function isHariDalamSiklus(hari) {
+    return bulanSiklus.some(({ bulan, tahun }) => {
+      const d = new Date(tahun, bulan, hari);
+      // Pastikan tanggal valid (misal 31 Feb -> jadi 3 Mar, harus ditolak)
+      if (d.getMonth() !== bulan) return false;
+      return d >= startDate && d <= endDate;
+    });
+  }
+
+  let tanggalValid = [];
   entries.forEach(x => {
     const h = parseInt(x.hari);
-    if (!isNaN(h) && h > maxHari) {
-      maxHari = h;
+    if (isNaN(h)) return;
+    if (!isHariDalamSiklus(h)) return;
+
+    // Cari tanggal aktual (bulan/tahun) yang cocok
+    for (const { bulan, tahun } of bulanSiklus) {
+      const d = new Date(tahun, bulan, h);
+      if (d.getMonth() === bulan && d >= startDate && d <= endDate) {
+        tanggalValid.push(d);
+        break;
+      }
     }
   });
 
-  if (maxHari === 0) {
-    return { pertama: tglAwal, terakhir: '-' };
+  if (tanggalValid.length === 0) {
+    return { pertama: '-', terakhir: '-' };
   }
 
+  // ===== 4. Ambil min & max =====
+  const minDate = new Date(Math.min(...tanggalValid.map(d => d.getTime())));
+  const maxDate = new Date(Math.max(...tanggalValid.map(d => d.getTime())));
+
+  // ===== 5. Format =====
+  const fmt = (d) => `${String(d.getDate()).padStart(2,'0')} ${namaBulan[d.getMonth()]} ${d.getFullYear()}`;
+
+  // Siklus lengkap (start s/d end) lebih informatif untuk user
   return {
-    pertama: tglAwal,
-    terakhir: `${maxHari} ${namaBulan[targetBulan]} ${targetTahun}`
+    pertama: fmt(startDate),
+    terakhir: fmt(endDate)
   };
 }
 /* ===== RENDER: ABSENSI ===== */
