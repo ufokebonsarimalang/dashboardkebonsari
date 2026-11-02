@@ -1615,29 +1615,50 @@ async function tampilkanDashboard() {
 }
 window.tampilkanDashboard = tampilkanDashboard;
 
-/* ===== LOADER DATA (pakai cache + get) ===== */
 async function muatDataBulanIni(forceRefresh = false) {
   const isAdminRole = currentUser.role === 'ADMIN';
   const now = new Date();
   const kodeBulan = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
   
-  // ===== LOGIKA MUNDUR 1 BULAN =====
-  let bulanTarget = now;
+  // ===== LOGIKA MUNDUR 1 BULAN UNTUK ABSENSI =====
+  let targetAbsen = new Date();
   // Jika hari ini tanggal 1 sampai 10, kita paksa baca bulan lalu (Oktober)
   if (now.getDate() <= 10) {
-    bulanTarget = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    targetAbsen = new Date(now.getFullYear(), now.getMonth() - 1, 1);
   }
 
   const bulanIni  = new Date(now.getFullYear(), now.getMonth(), 1);
   const bulanLalu = new Date(now.getFullYear(), now.getMonth() - 1, 1);
 
-  // ====== PENJUALAN ======
-  // Penjualan tetap pakai bulan berjalan (tidak mundur)
+  // ==========================================
+  // 1. LOAD PENJUALAN (TETAP BULAN BERJALAN)
+  // ==========================================
   const kodePenjualan = kodeBulan(bulanIni); 
-  // ... (biarkan sisa kode penjualan sama) ...
+  const pathProm = isAdminRole ? `penjualan/${kodePenjualan}/all` : `penjualan/${kodePenjualan}/per_promotor/${currentUser.key}`;
+  const cacheKeyProm = isAdminRole ? `penjualan_${kodePenjualan}_all` : `penjualan_${kodePenjualan}_${currentUser.key}`;
 
-  // ====== ABSENSI ======
-  // Absensi pakai bulanTarget (yang sudah dimundurkan ke Oktober)
+  let dataPenjualan = forceRefresh ? null : cacheGet(cacheKeyProm);
+  if (!dataPenjualan) {
+    try {
+      const snap = await window.dbGet(window.dbRef(window.db, pathProm));
+      allPenjualan = [];
+      if (snap.exists()) {
+        Object.values(snap.val()).forEach(item => {
+          if (item && item.namaSales) allPenjualan.push(item);
+        });
+      }
+      cacheSet(cacheKeyProm, allPenjualan);
+    } catch (err) {
+      console.error('Gagal load penjualan:', err);
+      allPenjualan = [];
+    }
+  } else {
+    allPenjualan = dataPenjualan;
+  }
+
+  // ==========================================
+  // 2. LOAD ABSENSI (MUNDUR KE BULAN LALU)
+  // ==========================================
   const keyUser = isAdminRole ? null : currentUser.key;
   const cacheKey = keyUser ? `absensi_${keyUser}` : `absensi_all`;
 
@@ -1646,16 +1667,16 @@ async function muatDataBulanIni(forceRefresh = false) {
     try {
       let hasil = {};
       let bulanSumber = null;
-
-      // Kita langsung tembak ke bulanTarget (Oktober)
-      const kode = kodeBulan(bulanTarget);
+      
+      // Coba load dari bulanTarget (Oktober)
+      const kodeTarget = kodeBulan(targetAbsen);
       let temp = {};
       let adaData = false;
 
       if (isAdminRole) {
         await Promise.all(Object.keys(allPromotor).map(async (keyProm) => {
           try {
-            const snap = await window.dbGet(window.dbRef(window.db, `absensi/${kode}/${keyProm}`));
+            const snap = await window.dbGet(window.dbRef(window.db, `absensi/${kodeTarget}/${keyProm}`));
             if (snap.exists()) {
               temp[keyProm] = snap.val();
               adaData = true;
@@ -1664,7 +1685,7 @@ async function muatDataBulanIni(forceRefresh = false) {
         }));
       } else {
         try {
-          const snap = await window.dbGet(window.dbRef(window.db, `absensi/${kode}/${keyUser}`));
+          const snap = await window.dbGet(window.dbRef(window.db, `absensi/${kodeTarget}/${keyUser}`));
           if (snap.exists()) {
             temp[keyUser] = snap.val();
             adaData = true;
@@ -1672,14 +1693,36 @@ async function muatDataBulanIni(forceRefresh = false) {
         } catch (err) { console.warn("Gagal ambil absensi", err); }
       }
 
-      // Jika bulanTarget (Oktober) ada isinya
-      if (adaData) {
-        hasil = temp;
-        bulanSumber = { bulan: bulanTarget.getMonth(), tahun: bulanTarget.getFullYear() };
-      } else {
-        // Fallback: Jika bulanTarget (Oktober) kosong, coba cari bulan lalu (September)
+      // Jika bulanTarget (Oktober) kosong, coba cari ke bulan sebelumnya (September)
+      if (!adaData) {
         const kodeLalu = kodeBulan(bulanLalu);
-        // ... (kode fallback opsional, bisa dibiarkan kosong jika yakin Oktober ada) ...
+        if (isAdminRole) {
+          await Promise.all(Object.keys(allPromotor).map(async (keyProm) => {
+            try {
+              const snap = await window.dbGet(window.dbRef(window.db, `absensi/${kodeLalu}/${keyProm}`));
+              if (snap.exists()) {
+                temp[keyProm] = snap.val();
+                adaData = true;
+              }
+            } catch (err) {}
+          }));
+        } else {
+          try {
+            const snap = await window.dbGet(window.dbRef(window.db, `absensi/${kodeLalu}/${keyUser}`));
+            if (snap.exists()) {
+              temp[keyUser] = snap.val();
+              adaData = true;
+            }
+          } catch (err) {}
+        }
+        if (adaData) {
+          hasil = temp;
+          bulanSumber = { bulan: bulanLalu.getMonth(), tahun: bulanLalu.getFullYear() };
+        }
+      } else {
+        // Jika data ada di bulanTarget (Oktober)
+        hasil = temp;
+        bulanSumber = { bulan: targetAbsen.getMonth(), tahun: targetAbsen.getFullYear() };
       }
 
       allAbsensiAll = hasil;
@@ -1695,6 +1738,7 @@ async function muatDataBulanIni(forceRefresh = false) {
     absensiBulanSumber = dataAbsensi.sumber || null;
   }
 
+  // Set allAbsensi sesuai user/admin
   if (isAdminRole && promotorTerpilih) {
     allAbsensi = allAbsensiAll[promotorTerpilih] || {};
   } else if (!isAdminRole) {
@@ -1703,6 +1747,7 @@ async function muatDataBulanIni(forceRefresh = false) {
     allAbsensi = {};
   }
 }
+window.muatDataBulanIni = muatDataBulanIni;
 
 /* ===== GANTI PROMOTOR (ADMIN) — pakai cache, tidak fetch ulang ===== */
 function gantiPromotorAdmin(keyPromotor) {
