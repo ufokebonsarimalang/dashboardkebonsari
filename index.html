@@ -2791,16 +2791,48 @@ function unduhExcelPerolehan() {
 window.unduhExcelPerolehan = unduhExcelPerolehan;
 
 /* ===== RENDER: DENDA (ADMIN) ===== */
-function renderDenda() {
+async function renderDenda() {
     const DENDA_UC_PER_UNIT = 5000;
     const DENDA_LATE_PER_KALI = 10000;
     const TARGET_UC_DEFAULT = 16;
+    
     if (!allPromotor || Object.keys(allPromotor).length === 0) {
-        return `<div class="empty-state">${ICONS.empty}<div class="pesan">Belum ada data promotor</div></div>`;
+      return `<div class="empty-state">${ICONS.empty}<div class="pesan">Belum ada data promotor</div></div>`;
     }
+
+    // =========================================================
+    // LOGIKA PERHITUNGAN DENDA (SIKLUS TANGGAL 11)
+    // =========================================================
+    const now = new Date();
+    let targetBulan = new Date(now.getFullYear(), now.getMonth(), 1); 
+    
+    // Jika hari ini tanggal 1-10, hitung dari BULAN LALU
+    if (now.getDate() <= 10) {
+      targetBulan = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    }
+    
+    const kodeBulanTarget = `${targetBulan.getFullYear()}-${String(targetBulan.getMonth() + 1).padStart(2, '0')}`;
+    const labelPeriode = new Date(targetBulan.getFullYear(), targetBulan.getMonth(), 1).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
+
+    // Ambil data langsung dari Firebase sesuai targetBulan
+    let penjualanDenda = [];
+    let absensiDenda = {};
+    
+    try {
+        const snapJual = await window.dbGet(window.dbRef(window.db, `penjualan/${kodeBulanTarget}/all`));
+        if (snapJual.exists()) penjualanDenda = Object.values(snapJual.val());
+        
+        const snapAbs = await window.dbGet(window.dbRef(window.db, `absensi/${kodeBulanTarget}`));
+        if (snapAbs.exists()) absensiDenda = snapAbs.val();
+    } catch (e) {
+        console.error("Gagal load data denda:", e);
+    }
+    // =========================================================
+
     let html = `
         <div class="summary-card">
             <h2>${ICONS.warning} Denda & Keterlambatan Semua Promotor</h2>
+            <p style="font-size:12px; color:#facc15; font-weight:700; margin-bottom:8px;">Periode Penilaian: ${labelPeriode} (Tgl 1 - Akhir Bulan)</p>
             <div style="display:flex; flex-wrap:wrap; gap:10px; margin-top:8px;">
                 <div style="flex:1; min-width:140px; background:rgba(239,68,68,0.1); padding:10px; border-radius:10px; border:1px solid rgba(239,68,68,0.3);">
                     <div style="font-size:10px; color:#9ca3af; font-weight:700;">DENDA UFO CARE</div>
@@ -2814,36 +2846,43 @@ function renderDenda() {
         </div>
         <div class="card-grid">
     `;
+    
     Object.keys(allPromotor).forEach(key => {
         const p = allPromotor[key];
         if (p.aktif === false) return;
         const cleanNama = String(p.namaSales || p.namaAbsen || '').trim().toUpperCase();
+        
         let totalUC = 0;
-        allPenjualan.forEach(x => {
+        penjualanDenda.forEach(x => { 
             if (!x || !x.namaSales) return;
             const salesTrans = String(x.namaSales).trim().toUpperCase();
             const kat = String(x.kategori || '').trim().toUpperCase();
             const brg = String(x.namaBarang || '').toUpperCase();
             const isMine = (salesTrans === cleanNama) || salesTrans.includes(cleanNama) || cleanNama.includes(salesTrans);
+            
             if (isMine && kat === 'GARANSI' && brg.includes('UFO CARE')) {
                 totalUC += Number(x.qty || 1);
             }
         });
-        const absensiP = allAbsensiAll[key] || {};
+
+        const absensiP = absensiDenda[key] || {};
         let totalTerlambat = 0;
         Object.values(absensiP).forEach(a => {
             if (a && String(a.terlambat || '').toUpperCase() === 'YA') totalTerlambat++;
         });
+
         const isIkutUC = String(p.ikutUC || 'YA').toUpperCase() !== 'TIDAK';
         const targetUC = isIkutUC ? Number(p.targetUC || TARGET_UC_DEFAULT) : 0;
         const kurangUC = (isIkutUC && totalUC < targetUC) ? (targetUC - totalUC) : 0;
+        
         const dendaUC = kurangUC * DENDA_UC_PER_UNIT;
         const dendaLate = totalTerlambat * DENDA_LATE_PER_KALI;
         const totalDenda = dendaUC + dendaLate;
+        
         html += `
             <div class="card ${totalDenda > 0 ? 'warning' : 'success'}">
                 <div class="tanggal">${escapeHtml(p.namaAbsen || '-')}</div>
-                <div class="row"><span>Denda UFO CARE</span><span style="color:${dendaUC > 0 ? '#f87171' : '#34d399'};">Rp ${dendaUC.toLocaleString('id-ID')}</span></div>
+                <div class="row"><span>Kurang UC (${totalUC}/${targetUC})</span><span style="color:${dendaUC > 0 ? '#f87171' : '#34d399'};">Rp ${dendaUC.toLocaleString('id-ID')}</span></div>
                 <div class="row"><span>Denda Late (${totalTerlambat}x)</span><span style="color:${dendaLate > 0 ? '#facc15' : '#34d399'};">Rp ${dendaLate.toLocaleString('id-ID')}</span></div>
                 <div class="row" style="border-top:1px solid rgba(255,255,255,0.1); margin-top:6px; padding-top:6px; font-weight:700;">
                     <span>TOTAL DENDA</span>
@@ -2855,7 +2894,6 @@ function renderDenda() {
     html += `</div>`;
     return html;
 }
-
 /* ===== THEME TOGGLE ===== */
 function toggleTheme() {
   // 1. Ganti class di body
