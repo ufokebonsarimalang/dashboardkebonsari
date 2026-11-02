@@ -1620,6 +1620,7 @@ async function muatDataBulanIni(forceRefresh = false) {
   const isAdminRole = currentUser.role === 'ADMIN';
   const now = new Date();
   const kodeBulan = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  
   const bulanIni  = new Date(now.getFullYear(), now.getMonth(), 1);
   const bulanLalu = new Date(now.getFullYear(), now.getMonth() - 1, 1);
 
@@ -1657,6 +1658,7 @@ async function muatDataBulanIni(forceRefresh = false) {
       let hasil = {};
       let bulanSumber = null;
 
+      // Cek bulan ini dulu, kalau kosong baru cek bulan lalu (Oktober)
       for (const kandidat of [bulanIni, bulanLalu]) {
         const kode = kodeBulan(kandidat);
         let temp = {};
@@ -1667,7 +1669,7 @@ async function muatDataBulanIni(forceRefresh = false) {
             try {
               const snap = await window.dbGet(window.dbRef(window.db, `absensi/${kode}/${keyProm}`));
               if (snap.exists()) {
-                temp[keyProm] = snap.val(); // Ambil SEMUA data mentah tanpa filter
+                temp[keyProm] = snap.val(); // Ambil SEMUA data mentah (1-31)
                 adaData = true;
               }
             } catch (err) { console.warn("Gagal ambil absensi " + keyProm, err); }
@@ -1676,16 +1678,16 @@ async function muatDataBulanIni(forceRefresh = false) {
           try {
             const snap = await window.dbGet(window.dbRef(window.db, `absensi/${kode}/${keyUser}`));
             if (snap.exists()) {
-              temp[keyUser] = snap.val(); // Ambil SEMUA data mentah tanpa filter
+              temp[keyUser] = snap.val(); // Ambil SEMUA data mentah (1-31)
               adaData = true;
             }
           } catch (err) { console.warn("Gagal ambil absensi", err); }
         }
 
-        if (adaData && Object.keys(temp).length > 0) {
+        if (adaData) {
           hasil = temp;
           bulanSumber = { bulan: kandidat.getMonth(), tahun: kandidat.getFullYear() };
-          break;
+          break; // Berhenti di bulan yang ada datanya
         }
       }
 
@@ -2045,18 +2047,25 @@ function getPromotorTerpilih() {
 function getPeriodeAbsensiDinamis(entries) {
   const namaBulan = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
 
-  if (!entries || entries.length === 0 || !absensiBulanSumber) {
+  // Jika belum ada data, tampilkan strip
+  if (!entries || entries.length === 0) {
     return { pertama: '-', terakhir: '-' };
   }
 
-  const { bulan, tahun } = absensiBulanSumber;
+  // Ambil bulan dan tahun dari sumber data Firebase (Oktober)
+  let bln = new Date().getMonth(); 
+  let thn = new Date().getFullYear(); 
+
+  if (typeof absensiBulanSumber !== 'undefined' && absensiBulanSumber) {
+    bln = absensiBulanSumber.bulan;
+    thn = absensiBulanSumber.tahun;
+  }
+
   let maxHari = null;
   
   entries.forEach(x => {
     const h = parseInt(x.hari);
     if (isNaN(h) || h < 1 || h > 31) return;
-    const d = new Date(tahun, bulan, h);
-    if (d.getMonth() !== bulan) return;
     if (maxHari === null || h > maxHari) maxHari = h;
   });
 
@@ -2064,9 +2073,10 @@ function getPeriodeAbsensiDinamis(entries) {
     return { pertama: '-', terakhir: '-' };
   }
 
+  // Paksa mulai dari tanggal 1 (sesuai kesepakatan Anda)
   return {
-    pertama: `1 ${namaBulan[bulan]} ${tahun}`,
-    terakhir: `${maxHari} ${namaBulan[bulan]} ${tahun}`
+    pertama: `1 ${namaBulan[bln]} ${thn}`,
+    terakhir: `${maxHari} ${namaBulan[bln]} ${thn}`
   };
 }
 /* ===== RENDER: ABSENSI ===== */
