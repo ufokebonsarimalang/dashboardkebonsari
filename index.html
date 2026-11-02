@@ -1886,7 +1886,7 @@ async function tampilkanDetail(menuKey, isRealtimeUpdate = false) {
   else if (menuKey === 'uc') content = renderUC();
   else if (menuKey === 'brand') content = renderBrand();
   else if (menuKey === 'perolehan') content = renderPerolehan();
-  else if (menuKey === 'denda') content = renderDenda();
+  else if (menuKey === 'denda') content = await renderDenda();
   else if (menuKey === 'promo' || menuKey === 'sop') {
     
     // Paksa ambil data paling baru di latar belakang (TANPA menahan layar)
@@ -2800,13 +2800,9 @@ async function renderDenda() {
       return `<div class="empty-state">${ICONS.empty}<div class="pesan">Belum ada data promotor</div></div>`;
     }
 
-    // =========================================================
-    // LOGIKA PERHITUNGAN DENDA (SIKLUS TANGGAL 11)
-    // =========================================================
     const now = new Date();
     let targetBulan = new Date(now.getFullYear(), now.getMonth(), 1); 
     
-    // Jika hari ini tanggal 1-10, hitung dari BULAN LALU
     if (now.getDate() <= 10) {
       targetBulan = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     }
@@ -2814,7 +2810,6 @@ async function renderDenda() {
     const kodeBulanTarget = `${targetBulan.getFullYear()}-${String(targetBulan.getMonth() + 1).padStart(2, '0')}`;
     const labelPeriode = new Date(targetBulan.getFullYear(), targetBulan.getMonth(), 1).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
 
-    // Ambil data langsung dari Firebase sesuai targetBulan
     let penjualanDenda = [];
     let absensiDenda = {};
     
@@ -2827,7 +2822,6 @@ async function renderDenda() {
     } catch (e) {
         console.error("Gagal load data denda:", e);
     }
-    // =========================================================
 
     let html = `
         <div class="summary-card">
