@@ -509,7 +509,7 @@ let allPenjualan = {};
 let allAbsensi = {};
 let allPromo = [];
 let allRules = [];
-let bulanUploadTerpilih = getBulanIni(); // <-- TAMBAHKAN INI
+const BULAN_INI = getBulanIni();
 
 function sanitizeKey(nama) { return String(nama || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_'); }
 
@@ -607,11 +607,11 @@ function mulaiAdmin() {
     allMaster = snap.exists() ? snap.val() : {};
     if (currentTab !== 'upload') renderTab();
   });
-  window.dbOnValue(window.dbRef(window.db, 'penjualan/' + bulanUploadTerpilih + '/all'), snap => {
+  window.dbOnValue(window.dbRef(window.db, 'penjualan/' + BULAN_INI + '/all'), snap => {
     allPenjualan = snap.exists() ? snap.val() : {};
     if (currentTab === 'dash') renderTab();
   });
-  window.dbOnValue(window.dbRef(window.db, 'absensi/' + bulanUploadTerpilih), snap => {
+  window.dbOnValue(window.dbRef(window.db, 'absensi/' + BULAN_INI), snap => {
     allAbsensi = snap.exists() ? snap.val() : {};
     if (currentTab === 'terlambat') renderTab();
   });
@@ -699,32 +699,10 @@ function renderDash() {
 /* ===== UPLOAD ===== */
 function renderUpload() {
   return `
-      <div class="card">
-      <h3><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> Pilih Bulan Upload</h3>
-      <p>Pilih bulan tujuan <b>sebelum</b> meng-upload. Pastikan sesuai dengan isi file Excel Anda.</p>
-      <input type="month" id="pilihBulanUpload" value="${bulanUploadTerpilih}" style="padding:12px; font-size:16px;" onchange="gantiBulanUpload(this.value)">
-    </div>
-
-    <div class="alert warn" style="margin-top: 12px;">
-      <svg viewBox="0 0 24 24" style="width:18px;height:18px;stroke:currentColor;stroke-width:2.5;fill:none;flex-shrink:0;"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> 
-      Data akan masuk ke folder: <b id="labelBulanUpload">${bulanUploadTerpilih}</b>
-    </div>
-    
-    <!-- TAMBAHKAN INPUT BULAN DI SINI -->
-    <div class="card">
-      <h3><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> Pilih Bulan Upload</h3>
-      <p>Pilih bulan tujuan <b>sebelum</b> meng-upload. Pastikan sesuai dengan isi file Excel Anda.</p>
-      <input type="month" id="pilihBulanUpload" value="${bulanUploadTerpilih}" style="padding:12px; font-size:16px;" onchange="gantiBulanUpload(this.value)">
-    </div>
-
-    <div class="alert warn" style="margin-top: 12px;">
-      <svg viewBox="0 0 24 24" style="width:18px;height:18px;stroke:currentColor;stroke-width:2.5;fill:none;flex-shrink:0;"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> 
-      Data akan masuk ke folder: <b id="labelBulanUpload">${bulanUploadTerpilih}</b>
-    </div>
+    <div class="alert warn"><svg viewBox="0 0 24 24" style="width:18px;height:18px;stroke:currentColor;stroke-width:2.5;fill:none;flex-shrink:0;"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> Upload masuk ke folder bulan: <b>${BULAN_INI}</b> (${getNamaBulanIndo(BULAN_INI)})</div>
     
     <div class="card">
       <h3><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> 1. Upload File Finger</h3>
-      <!-- ... (SISA KODE DI BAWAHNYA TETAP SAMA) ... -->
       <p>Upload file absen dari mesin finger (sheet <b>Punch</b> / <b>RAW</b>).</p>
       <div class="file-wrap" onclick="document.getElementById('fileFinger').click()">
         <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
@@ -757,28 +735,7 @@ function renderUpload() {
     </div>
   `;
 }
-  function gantiBulanUpload(val) {
-  bulanUploadTerpilih = val;
-  document.getElementById('labelBulanUpload').innerText = val;
-  // Bersihkan info upload sebelumnya jika ada
-  const infoFinger = document.getElementById('fingerInfo');
-  const infoMaster = document.getElementById('masterInfo');
-  const infoPenjualan = document.getElementById('penjualanInfo');
-  if (infoFinger) infoFinger.innerHTML = '';
-  if (infoMaster) infoMaster.innerHTML = '';
-  if (infoPenjualan) infoPenjualan.innerHTML = '';
-}
-function gantiBulanUpload(val) {
-  bulanUploadTerpilih = val;
-  document.getElementById('labelBulanUpload').innerText = val;
-  // Bersihkan info upload sebelumnya jika ada
-  const infoFinger = document.getElementById('fingerInfo');
-  const infoMaster = document.getElementById('masterInfo');
-  const infoPenjualan = document.getElementById('penjualanInfo');
-  if (infoFinger) infoFinger.innerHTML = '';
-  if (infoMaster) infoMaster.innerHTML = '';
-  if (infoPenjualan) infoPenjualan.innerHTML = '';
-}
+
 function handleFileFinger(e) {
   const file = e.target.files[0];
   if (!file) return;
@@ -853,7 +810,7 @@ async function konfirmasiUploadFinger() {
   const el = document.getElementById('fingerInfo');
   el.innerHTML = '<div class="alert warn"><span class="spinner spinner-dark"></span> Uploading...</div>';
   try {
-    const snap = await window.dbGet(window.dbRef(window.db, 'absensi/' + bulanUploadTerpilih));
+    const snap = await window.dbGet(window.dbRef(window.db, 'absensi/' + BULAN_INI));
     const existing = snap.exists() ? snap.val() : {};
     const updates = {};
     let totalHari = 0, totalUpdate = 0;
@@ -1039,7 +996,7 @@ async function konfirmasiUploadMaster() {
       }
     });
 
-    const snapAll = await window.dbGet(window.dbRef(window.db, 'penjualan/' + bulanUploadTerpilih + '/all'));
+    const snapAll = await window.dbGet(window.dbRef(window.db, 'penjualan/' + BULAN_INI + '/all'));
     const setExist = new Set();
     if (snapAll.exists()) Object.values(snapAll.val()).forEach(x => { if (x && x.noFaktur && x.barcode) setExist.add(x.noFaktur + '|' + x.barcode); });
 
@@ -1049,14 +1006,14 @@ async function konfirmasiUploadMaster() {
       const k = item.noFaktur + '|' + item.barcode;
       if (setExist.has(k)) { cSkip++; return; }
       const txId = `t_${Date.now()}_${idx}_${Math.random().toString(36).substr(2,6)}`;
-      updates[`penjualan/${bulanUploadTerpilih}/all/${txId}`] = item;
+      updates[`penjualan/${BULAN_INI}/all/${txId}`] = item;
       const pk = cariPromotorKeyBySalesId(item.namaSales);
-      if (pk) updates[`penjualan/${bulanUploadTerpilih}/per_promotor/${pk}/${txId}`] = item;
+      if (pk) updates[`penjualan/${BULAN_INI}/per_promotor/${pk}/${txId}`] = item;
       else salesTidakDikenal.add(item.namaSales);
       cBaru++;
     });
 
-    Object.keys(data.absensi).forEach(k => { updates[`absensi/${bulanUploadTerpilih}/${k}`] = data.absensi[k]; });
+    Object.keys(data.absensi).forEach(k => { updates[`absensi/${BULAN_INI}/${k}`] = data.absensi[k]; });
     if (data.info.promo.length) updates['info/promo'] = data.info.promo;
     if (data.info.rules.length) updates['info/rules'] = data.info.rules;
 
@@ -1128,7 +1085,7 @@ async function konfirmasiUploadPenjualan() {
   const el = document.getElementById('penjualanInfo');
   el.innerHTML = '<div class="alert warn"><span class="spinner spinner-dark"></span> Uploading...</div>';
   try {
-    const snapAll = await window.dbGet(window.dbRef(window.db, 'penjualan/' + bulanUploadTerpilih + '/all'));
+    const snapAll = await window.dbGet(window.dbRef(window.db, 'penjualan/' + BULAN_INI + '/all'));
     const setExist = new Set();
     if (snapAll.exists()) Object.values(snapAll.val()).forEach(x => { if (x && x.noFaktur && x.barcode) setExist.add(x.noFaktur + '|' + x.barcode); });
     const updates = {};
@@ -1138,9 +1095,9 @@ async function konfirmasiUploadPenjualan() {
       const k = item.noFaktur + '|' + item.barcode;
       if (setExist.has(k)) { cSkip++; return; }
       const txId = `t_${Date.now()}_${idx}_${Math.random().toString(36).substr(2,6)}`;
-      updates[`penjualan/${bulanUploadTerpilih}/all/${txId}`] = item;
+      updates[`penjualan/${BULAN_INI}/all/${txId}`] = item;
       const pk = cariPromotorKeyBySalesId(item.namaSales);
-      if (pk) updates[`penjualan/${bulanUploadTerpilih}/per_promotor/${pk}/${txId}`] = item;
+      if (pk) updates[`penjualan/${BULAN_INI}/per_promotor/${pk}/${txId}`] = item;
       else salesTidakDikenal.add(item.namaSales);
       cBaru++;
     });
@@ -1299,7 +1256,7 @@ async function simpanMasterPromotor() {
 async function migrasiKey(keyLama, keyBaru) {
   try {
     const updates = {};
-    const snapAbs = await window.dbGet(window.dbRef(window.db, 'absensi/' + bulanUploadTerpilih + '/' + keyLama));
+    const snapAbs = await window.dbGet(window.dbRef(window.db, 'absensi/' + BULAN_INI + '/' + keyLama));
     if (snapAbs.exists()) {
       Object.keys(snapAbs.val()).forEach(hk => { updates[`absensi/${BULAN_INI}/${keyBaru}/${hk}`] = snapAbs.val()[hk]; });
       updates[`absensi/${BULAN_INI}/${keyLama}`] = null;
@@ -1321,7 +1278,7 @@ async function hapusMasterPromotor(key, nama) {
       updates['users/master_promotor/' + key] = null;
       if (p && p.email) updates['users/whitelist/' + p.email.toLowerCase().replace(/\./g, ',')] = null;
       if (p && p.namaFinger) updates['users/mapping_nama/' + p.namaFinger.toUpperCase()] = null;
-      updates['absensi/' + bulanUploadTerpilih + '/' + key] = null;
+      updates['absensi/' + BULAN_INI + '/' + key] = null;
       updates['penjualan/' + BULAN_INI + '/per_promotor/' + key] = null;
       await window.dbUpdate(window.dbRef(window.db), updates);
       tampilkanNotif('Berhasil', 'Promotor dihapus.', 'success');
@@ -1777,7 +1734,7 @@ async function downloadExcelBulanIni() {
   XLSX.writeFile(wb, `Data_UFO_${BULAN_INI}.xlsx`);
 }
 async function hapusPenjualanBulanIni() { tampilkanKonfirmasi('Hapus Penjualan?', 'Yakin?', async () => { await window.dbRemove(window.dbRef(window.db, 'penjualan/' + BULAN_INI)); tampilkanNotif('Berhasil', 'Dihapus.', 'success'); }, 'danger'); }
-async function hapusAbsensiBulanIni() { tampilkanKonfirmasi('Hapus Absensi?', 'Yakin?', async () => { await window.dbRemove(window.dbRef(window.db, 'absensi/' + bulanUploadTerpilih)); tampilkanNotif('Berhasil', 'Dihapus.', 'success'); }, 'danger'); }
+async function hapusAbsensiBulanIni() { tampilkanKonfirmasi('Hapus Absensi?', 'Yakin?', async () => { await window.dbRemove(window.dbRef(window.db, 'absensi/' + BULAN_INI)); tampilkanNotif('Berhasil', 'Dihapus.', 'success'); }, 'danger'); }
 async function hapusSemua() {
   tampilkanKonfirmasi('HAPUS SEMUA?', 'Semua data dihapus permanen!', async () => {
     await window.dbRemove(window.dbRef(window.db, 'penjualan'));
