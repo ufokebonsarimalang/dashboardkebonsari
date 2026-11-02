@@ -1656,8 +1656,8 @@ async function muatDataBulanIni(forceRefresh = false) {
     allPenjualan = dataPenjualan;
   }
 
-  // ==========================================
-  // 2. LOAD ABSENSI (MUNDUR KE BULAN LALU)
+   // ==========================================
+  // 2. LOAD ABSENSI (TRIK DETEKSI SALAH BULAN)
   // ==========================================
   const keyUser = isAdminRole ? null : currentUser.key;
   const cacheKey = keyUser ? `absensi_${keyUser}` : `absensi_all`;
@@ -1667,21 +1667,21 @@ async function muatDataBulanIni(forceRefresh = false) {
     try {
       let hasil = {};
       let bulanSumber = null;
-      
-      // Coba load dari bulanTarget (Oktober)
-      const kodeTarget = kodeBulan(targetAbsen);
-      let temp = {};
       let adaData = false;
+
+      // Coba load dari bulan berjalan (November) dulu
+      const kodeTarget = kodeBulan(bulanIni);
+      let temp = {};
 
       if (isAdminRole) {
         await Promise.all(Object.keys(allPromotor).map(async (keyProm) => {
           try {
             const snap = await window.dbGet(window.dbRef(window.db, `absensi/${kodeTarget}/${keyProm}`));
             if (snap.exists()) {
-              temp[keyProm] = snap.val();
+              temp[keyProm] = snap.val(); 
               adaData = true;
             }
-          } catch (err) { console.warn("Gagal ambil absensi " + keyProm, err); }
+          } catch (err) {}
         }));
       } else {
         try {
@@ -1690,39 +1690,49 @@ async function muatDataBulanIni(forceRefresh = false) {
             temp[keyUser] = snap.val();
             adaData = true;
           }
-        } catch (err) { console.warn("Gagal ambil absensi", err); }
+        } catch (err) {}
       }
 
-      // Jika bulanTarget (Oktober) kosong, coba cari ke bulan sebelumnya (September)
-      if (!adaData) {
+      // ===== TRIK PENYELAMATAN DATA SALAH KAMAR =====
+      // Jika ada data di November, cek isinya. Apakah ini data Oktober?
+      if (adaData && Object.keys(temp).length > 0) {
+        const firstPromKey = Object.keys(temp)[0];
+        const firstEntry = Object.values(temp[firstPromKey])[0]; // ambil hari pertama
+        
+        // Cek apakah isinya "Oktober" (bulan 10)
+        if (firstEntry && (firstEntry.bulan === 'Oktober' || String(firstEntry.bulan).includes('Oktober'))) {
+          // JIKA IYA, KITA PINDAHKAN KE OKTOBER!
+          hasil = temp;
+          bulanSumber = { bulan: 9, tahun: 2026 }; // 9 = Oktober (0-based)
+        } else {
+          // Jika isinya benar-benar November
+          hasil = temp;
+          bulanSumber = { bulan: bulanIni.getMonth(), tahun: bulanIni.getFullYear() };
+        }
+      } else {
+        // Jika November kosong, cari ke Oktober (seperti biasa)
         const kodeLalu = kodeBulan(bulanLalu);
+        let tempLalu = {};
+        let adaDataLalu = false;
+        // ... (kode fallback Oktober sama seperti sebelumnya) ...
         if (isAdminRole) {
           await Promise.all(Object.keys(allPromotor).map(async (keyProm) => {
             try {
               const snap = await window.dbGet(window.dbRef(window.db, `absensi/${kodeLalu}/${keyProm}`));
-              if (snap.exists()) {
-                temp[keyProm] = snap.val();
-                adaData = true;
-              }
+              if (snap.exists()) { tempLalu[keyProm] = snap.val(); adaDataLalu = true; }
             } catch (err) {}
           }));
         } else {
           try {
             const snap = await window.dbGet(window.dbRef(window.db, `absensi/${kodeLalu}/${keyUser}`));
-            if (snap.exists()) {
-              temp[keyUser] = snap.val();
-              adaData = true;
-            }
+            if (snap.exists()) { tempLalu[keyUser] = snap.val(); adaDataLalu = true; }
           } catch (err) {}
         }
-        if (adaData) {
-          hasil = temp;
+
+        if (adaDataLalu) {
+          hasil = tempLalu;
           bulanSumber = { bulan: bulanLalu.getMonth(), tahun: bulanLalu.getFullYear() };
         }
-      } else {
-        // Jika data ada di bulanTarget (Oktober)
-        hasil = temp;
-        bulanSumber = { bulan: targetAbsen.getMonth(), tahun: targetAbsen.getFullYear() };
       }
 
       allAbsensiAll = hasil;
@@ -1737,18 +1747,6 @@ async function muatDataBulanIni(forceRefresh = false) {
     allAbsensiAll = dataAbsensi.data || {};
     absensiBulanSumber = dataAbsensi.sumber || null;
   }
-
-  // Set allAbsensi sesuai user/admin
-  if (isAdminRole && promotorTerpilih) {
-    allAbsensi = allAbsensiAll[promotorTerpilih] || {};
-  } else if (!isAdminRole) {
-    allAbsensi = allAbsensiAll[currentUser.key] || {};
-  } else {
-    allAbsensi = {};
-  }
-}
-window.muatDataBulanIni = muatDataBulanIni;
-
 /* ===== GANTI PROMOTOR (ADMIN) — pakai cache, tidak fetch ulang ===== */
 function gantiPromotorAdmin(keyPromotor) {
   if (!currentUser || currentUser.role !== 'ADMIN') {
