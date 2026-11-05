@@ -2251,16 +2251,14 @@ function renderUC() {
       return `<div class="empty-state">${ICONS.empty}<div class="pesan">Silakan pilih promotor terlebih dahulu dari menu di atas</div></div>`;
     }
     const listAll = getDataSaya();
-    const list = listAll.filter(x => {
+      const list = listAll.filter(x => {
         if (!x) return false;
-        const tgl = String(x.tanggal || '');
-        const noFaktur = String(x.nomorFaktur || x.noFaktur || '').toUpperCase();
         const kat = String(x.kategori || '').trim().toUpperCase();
         const namaBrd = String(x.namaBarang || '').trim().toUpperCase();
-        const isOktoberFaktur = noFaktur.includes('2610');
-        const isOktoberTgl = tgl.includes('/10/2026') || tgl.includes('2026-10');
         const isMurniUC = (kat === 'GARANSI') && namaBrd.includes('UFO CARE');
-        return (isOktoberFaktur || isOktoberTgl) && isMurniUC;
+        
+        // HAPUS FILTER OKTOBER, LANGSUNG CEK UC
+        return isMurniUC;
     });
     let totalUC = 0;
     list.forEach(x => { totalUC += Number(x.qty || 1); });
@@ -2301,17 +2299,15 @@ function renderBrand() {
     const listAll = getDataSaya();
     const dataProm = getPromotorTerpilih();
     const brandPromotor = dataProm && dataProm.merk ? String(dataProm.merk).trim().toUpperCase() : "";
-    const list = listAll.filter(x => {
+       const list = listAll.filter(x => {
         if (!x) return false;
-        const tgl = String(x.tanggal || '');
-        const noFaktur = String(x.nomorFaktur || x.noFaktur || '').toUpperCase();
         const merkBarang = String(x.merk || '').trim().toUpperCase();
         const kat = String(x.kategori || '').trim().toUpperCase();
         if (kat === 'GARANSI' || kat === 'ONGKOS') return false;
-        const isOktoberFaktur = noFaktur.includes('2610');
-        const isOktoberTgl = tgl.includes('/10/2026') || tgl.includes('2026-10');
         const isMatchBrand = !brandPromotor || (merkBarang === brandPromotor || merkBarang.includes(brandPromotor));
-        return (isOktoberFaktur || isOktoberTgl) && isMatchBrand;
+        
+        // HAPUS FILTER OKTOBER, LANGSUNG CEK BRAND
+        return isMatchBrand;
     });
     let totalBrandQty = 0, totalOmzetBrand = 0;
     list.forEach(x => {
