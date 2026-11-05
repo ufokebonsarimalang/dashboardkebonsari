@@ -2068,17 +2068,26 @@ function getPeriodeAbsensiDinamis(entries) {
     return { pertama: '-', terakhir: '-' };
   }
 
-  // Paksa tampil bulan berjalan (November)
-  let bln = new Date().getMonth(); // 10 (November)
-  let thn = new Date().getFullYear(); // 2026
+  // Ambil bulan dan tahun dari data Firebase
+  let bln = 9; // Default Oktober
+  let thn = new Date().getFullYear(); 
 
-  // Cari tanggal terakhir di bulan tersebut secara otomatis
-  // (new Date(2026, 11, 0) akan menghasilkan 30 November 2026)
-  const tglAkhirBulan = new Date(thn, bln + 1, 0).getDate(); 
+  if (typeof absensiBulanSumber !== 'undefined' && absensiBulanSumber) {
+    bln = absensiBulanSumber.bulan;
+    thn = absensiBulanSumber.tahun;
+  }
 
+  // Cari tanggal terakhir yang ada datanya (max hari)
+  let maxHari = 1;
+  entries.forEach(x => {
+    const h = parseInt(x.hari);
+    if (!isNaN(h) && h > maxHari) maxHari = h;
+  });
+
+  // Format tampilan: 1 - [maxHari] [Bulan] [Tahun]
   return {
-    pertama: `1 ${namaBulan[bln]} ${thn}`,
-    terakhir: `${tglAkhirBulan} ${namaBulan[bln]} ${thn}`
+    pertama: `1`,
+    terakhir: `${maxHari} ${namaBulan[bln]} ${thn}`
   };
 }
 /* ===== RENDER: ABSENSI ===== */
