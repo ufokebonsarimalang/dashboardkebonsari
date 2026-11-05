@@ -1928,37 +1928,28 @@ function tanggalKeNama(tglStr) {
   const s = String(tglStr).trim();
   const namaBulan = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
 
-  // Format ISO (YYYY-MM-DD)
+  // Format ISO (2026-11-04)
   if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
-    const parts = s.split(' ')[0].split('-');
-    const yyyy = parseInt(parts[0]);
-    const mm = parseInt(parts[1]);
-    const dd = parseInt(parts[2]);
-    if (mm >= 1 && mm <= 12) return `${dd} ${namaBulan[mm - 1]} ${yyyy}`;
+    const p = s.split(' ')[0].split('-');
+    return `${parseInt(p[2])} ${namaBulan[parseInt(p[1]) - 1]} ${p[0]}`;
   }
 
-  // Format Indonesia / Kasir (DD/MM/YYYY atau MM/DD/YYYY)
+  // Format Kasir (MM/DD/YYYY) -> Bulan di depan
   const parts = s.split('/');
   if (parts.length === 3) {
-    let a = parseInt(parts[0]); // Angka pertama
-    let b = parseInt(parts[1]); // Angka kedua
-    let yyyy = parseInt(parts[2]);
+    let mm = parseInt(parts[0]); // Bulan
+    let dd = parseInt(parts[1]); // Tanggal
+    let yyyy = parseInt(parts[2]); // Tahun
     
-    // Tentukan mana Tanggal dan mana Bulan
-    let tgl, bln;
-    if (a > 12) {
-      // Jika angka pertama > 12, berarti ini format Indonesia (Tgl/Bln/Thn)
-      tgl = a; bln = b;
-    } else if (b > 12) {
-      // Jika angka kedua > 12, berarti ini format Kasir (Bln/Tgl/Thn)
-      tgl = b; bln = a;
-    } else {
-      // Jika dua-duanya <= 12, kita paksa baca format Kasir (Bln/Tgl/Thn)
-      tgl = b; bln = a; 
+    // Jika angkanya ternyata format Indonesia (Tgl/Bln/Thn), kita tukar
+    if (mm > 12) {
+      let temp = mm;
+      mm = dd;
+      dd = temp;
     }
     
-    if (bln >= 1 && bln <= 12 && !isNaN(tgl) && !isNaN(yyyy)) {
-      return `${tgl} ${namaBulan[bln - 1]} ${yyyy}`; 
+    if (mm >= 1 && mm <= 12 && !isNaN(dd) && !isNaN(yyyy)) {
+      return `${dd} ${namaBulan[mm - 1]} ${yyyy}`;
     }
   }
   return s;
@@ -1975,16 +1966,17 @@ function parseTanggal(str) {
   
   const p = s.split('/');
   if (p.length === 3) {
-    let a = Number(p[0]);
-    let b = Number(p[1]);
-    let yyyy = Number(p[2]);
+    let mm = Number(p[0]); // Bulan
+    let dd = Number(p[1]); // Tanggal
+    let yyyy = Number(p[2]); // Tahun
     
-    let tgl, bln;
-    if (a > 12) { tgl = a; bln = b; }
-    else if (b > 12) { tgl = b; bln = a; }
-    else { tgl = b; bln = a; } // Paksa format Kasir (Bln/Tgl/Thn)
+    if (mm > 12) {
+      let temp = mm;
+      mm = dd;
+      dd = temp;
+    }
     
-    const d = new Date(yyyy, bln - 1, tgl);
+    const d = new Date(yyyy, mm - 1, dd);
     return isNaN(d.getTime()) ? null : d;
   }
   return null;
