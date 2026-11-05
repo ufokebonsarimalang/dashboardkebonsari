@@ -1937,15 +1937,28 @@ function tanggalKeNama(tglStr) {
     if (mm >= 1 && mm <= 12) return `${dd} ${namaBulan[mm - 1]} ${yyyy}`;
   }
 
-  // Format Kasir (MM/DD/YYYY) -> Bulan di depan
+  // Format Indonesia / Kasir (DD/MM/YYYY atau MM/DD/YYYY)
   const parts = s.split('/');
   if (parts.length === 3) {
-    let mm = parseInt(parts[0]); // Angka pertama adalah BULAN (11)
-    let dd = parseInt(parts[1]); // Angka kedua adalah TANGGAL (01)
+    let a = parseInt(parts[0]); // Angka pertama
+    let b = parseInt(parts[1]); // Angka kedua
     let yyyy = parseInt(parts[2]);
     
-    if (mm >= 1 && mm <= 12 && !isNaN(dd) && !isNaN(yyyy)) {
-      return `${dd} ${namaBulan[mm - 1]} ${yyyy}`; // Hasil: 1 November 2026
+    // Tentukan mana Tanggal dan mana Bulan
+    let tgl, bln;
+    if (a > 12) {
+      // Jika angka pertama > 12, berarti ini format Indonesia (Tgl/Bln/Thn)
+      tgl = a; bln = b;
+    } else if (b > 12) {
+      // Jika angka kedua > 12, berarti ini format Kasir (Bln/Tgl/Thn)
+      tgl = b; bln = a;
+    } else {
+      // Jika dua-duanya <= 12, kita paksa baca format Kasir (Bln/Tgl/Thn)
+      tgl = b; bln = a; 
+    }
+    
+    if (bln >= 1 && bln <= 12 && !isNaN(tgl) && !isNaN(yyyy)) {
+      return `${tgl} ${namaBulan[bln - 1]} ${yyyy}`; 
     }
   }
   return s;
@@ -1962,10 +1975,16 @@ function parseTanggal(str) {
   
   const p = s.split('/');
   if (p.length === 3) {
-    let bln = Number(p[0]); // Bulan
-    let tgl = Number(p[1]); // Tanggal
-    let thn = Number(p[2]); // Tahun
-    const d = new Date(thn, bln - 1, tgl);
+    let a = Number(p[0]);
+    let b = Number(p[1]);
+    let yyyy = Number(p[2]);
+    
+    let tgl, bln;
+    if (a > 12) { tgl = a; bln = b; }
+    else if (b > 12) { tgl = b; bln = a; }
+    else { tgl = b; bln = a; } // Paksa format Kasir (Bln/Tgl/Thn)
+    
+    const d = new Date(yyyy, bln - 1, tgl);
     return isNaN(d.getTime()) ? null : d;
   }
   return null;
@@ -2196,7 +2215,7 @@ function renderPenjualan() {
   let html = `
     <div class="summary-card">
       <h2>${ICONS.money} ${namaTampil}</h2>
-      <p>Periode : <b>${periode.pertama} - ${periode.terakhir}</b></p>
+      <p style="display:block; line-height:1.5;">Periode : <br><b>${periode.pertama} - ${periode.terakhir}</b></p>
       <p>Total Unit : <b>${totalUnit}</b></p>
       <p>Total Omzet : <span style="font-weight:bold; color:#34d399;">Rp ${totalOmzet.toLocaleString('id-ID')}</span></p>
     </div>
@@ -2268,7 +2287,7 @@ function renderUC() {
     let html = `
         <div class="summary-card">
             <h2>${ICONS.uc} ${namaPromotor}</h2>
-            <p>Periode : <b>${periode.pertama} - ${periode.terakhir}</b></p>
+            <p style="display:block; line-height:1.5;">Periode : <br><b>${periode.pertama} - ${periode.terakhir}</b></p>
             <p>Total UFO CARE : <b>${totalUC}</b></p>
         </div>
     `;
@@ -2321,7 +2340,7 @@ function renderBrand() {
         <div class="summary-card">
             <h2>${ICONS.brand} ${namaPromotor}</h2>
             <p>Brand : <b>${infoMerk}</b></p>
-            <p>Periode : <b>${periode.pertama} - ${periode.terakhir}</b></p>
+            <p style="display:block; line-height:1.5;">Periode : <br><b>${periode.pertama} - ${periode.terakhir}</b></p>
             <p>Total Perolehan Unit : <b>${totalBrandQty} Unit</b></p>
             <p>Total Omzet Brand : <span style="font-weight:bold; color:#34d399;">Rp ${totalOmzetBrand.toLocaleString("id-ID")}</span></p>
         </div>
@@ -2647,7 +2666,7 @@ function renderPerolehan() {
     let html = `
         <div class="summary-card">
             <h2>${ICONS.chart} Perolehan All Promotor</h2>
-            <p>Periode : <b>${periode.pertama} - ${periode.terakhir}</b></p>
+            <p style="display:block; line-height:1.5;">Periode : <br><b>${periode.pertama} - ${periode.terakhir}</b></p>
             <p>${ICONS.users} Jumlah Promotor : <b>${arr.length}</b></p>
             <p>${ICONS.moneySmall} Total Omzet Toko : <span style="font-weight:bold; color:#34d399;">Rp ${totalOmzetSemua.toLocaleString('id-ID')}</span></p>
             <p>${ICONS.diamondSmall} Total UFO CARE : <b>${totalUCSemua}</b></p>
