@@ -2837,28 +2837,22 @@ async function renderDenda() {
       return `<div class="empty-state">${ICONS.empty}<div class="pesan">Belum ada data promotor</div></div>`;
     }
 
-    // 1. TENTUKAN KODE BULAN
-    const now = new Date();
-    const targetBulan = new Date(now.getFullYear(), now.getMonth() - 1, 1); 
-    const kodeBulanLalu = `${targetBulan.getFullYear()}-${String(targetBulan.getMonth() + 1).padStart(2, '0')}`; // 2026-10
-    const kodeBulanIni  = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`; // 2026-11
-    const labelPeriode = new Date(targetBulan.getFullYear(), targetBulan.getMonth(), 1).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
+    // KUNCI MATI: UC dari Oktober, Absensi dari November (isinya Oktober)
+    const kodeBulanLalu = '2026-10'; 
+    const kodeBulanIni  = '2026-11'; 
+    const labelPeriode = 'Oktober 2026';
 
     let penjualanDenda = [];
     let absensiDenda = {};
     
     try {
-        // ==============================================================
-        // A. ABSENSI: Ambil dari folder BULAN INI (2026-11) krn isinya Oktober
-        // ==============================================================
-        const snapAbs = await window.dbGet(window.dbRef(window.db, `absensi/${kodeBulanIni}`));
-        if (snapAbs.exists()) absensiDenda = snapAbs.val();
-
-        // ==============================================================
-        // B. PENJUALAN (UC): Ambil MURNI dari folder BULAN LALU (2026-10)
-        // ==============================================================
+        // A. Tarik UC dari Oktober
         const snapJual = await window.dbGet(window.dbRef(window.db, `penjualan/${kodeBulanLalu}/all`));
         if (snapJual.exists()) penjualanDenda = Object.values(snapJual.val());
+
+        // B. Tarik Absensi dari November
+        const snapAbs = await window.dbGet(window.dbRef(window.db, `absensi/${kodeBulanIni}`));
+        if (snapAbs.exists()) absensiDenda = snapAbs.val();
         
     } catch (e) {
         console.error("Gagal load data denda:", e);
@@ -2866,7 +2860,7 @@ async function renderDenda() {
 
     let html = `
         <div class="summary-card">
-            <h2>${ICONS.warning} Denda & Keterlambatan Semua Promotor</h2>
+            <h2>${ICONS.warning} Denda & Keterlambatan Promotor</h2>
             <p style="font-size:12px; color:#facc15; font-weight:700; margin-bottom:8px;">Periode Penilaian: ${labelPeriode} (Tgl 1 - 31)</p>
             <div style="display:flex; flex-wrap:wrap; gap:10px; margin-top:8px;">
                 <div style="flex:1; min-width:140px; background:rgba(239,68,68,0.1); padding:10px; border-radius:10px; border:1px solid rgba(239,68,68,0.3);">
@@ -2882,16 +2876,17 @@ async function renderDenda() {
         <div class="card-grid">
     `;
     
-    Object.keys(allPromotor).forEach(key => {
-        const p = allPromotor[key];
-        // Filter 3 lapis (aktif, bukan admin, tampil web)
-        if (String(p.aktif || 'YA').toUpperCase() !== 'YA') return;
-        if (String(p.role || 'PROMOTOR').toUpperCase() === 'ADMIN') return;
-        if (String(p.tampilWeb || 'YA').toUpperCase() === 'TIDAK') return;
-        
+    // Urutkan berdasarkan nama promotor
+    const listPromotor = Object.keys(allPromotor).map(k => ({ key: k, ...allPromotor[k] }))
+        .filter(p => String(p.aktif || 'YA').toUpperCase() === 'YA')
+        .filter(p => String(p.role || 'PROMOTOR').toUpperCase() !== 'ADMIN')
+        .filter(p => String(p.tampilWeb || 'YA').toUpperCase() === 'YA')
+        .sort((a,b) => (a.namaAbsen || '').localeCompare(b.namaAbsen || ''));
+
+    listPromotor.forEach(p => {
         const cleanNama = String(p.namaSalesId || p.namaSales || p.namaAbsen || '').trim().toUpperCase();
         
-        // --- HITUNG UC (DARI PENJUALAN OKTOBER) ---
+        // --- HITUNG UC ---
         let totalUC = 0;
         penjualanDenda.forEach(x => { 
             if (!x || !x.namaSales) return;
@@ -2905,16 +2900,22 @@ async function renderDenda() {
             }
         });
 
-        // --- HITUNG TERLAMBAT (DARI ABSENSI NOVEMBER YG ISINYA OKTOBER) ---
-        const absensiP = absensiDenda[key] || {};
+        // --- HITUNG TERLAMBAT & MASUK ---
+        const absensiP = absensiDenda[p.key] || {};
         let totalTerlambat = 0;
+        let totalHariMasuk = 0;
         
         Object.values(absensiP).forEach(a => {
             if (!a) return;
-            const isLate = String(a.terlambat || '').toUpperCase() === 'YA';
-            if (isLate) totalTerlambat++;
+            if (a.masuk && String(a.masuk).trim() !== '' && a.masuk !== '-') {
+                totalHariMasuk++;
+            }
+            if (String(a.terlambat || '').toUpperCase() === 'YA') {
+                totalTerlambat++;
+            }
         });
 
+        // --- PERHITUNGAN DENDA ---
         const isIkutUC = String(p.ikutUC || 'YA').toUpperCase() !== 'TIDAK';
         const targetUC = isIkutUC ? Number(p.targetUC || TARGET_UC_DEFAULT) : 0;
         const kurangUC = (isIkutUC && totalUC < targetUC) ? (targetUC - totalUC) : 0;
@@ -2925,11 +2926,26 @@ async function renderDenda() {
         
         html += `
             <div class="card ${totalDenda > 0 ? 'warning' : 'success'}">
-                <div class="tanggal">${escapeHtml(p.namaAbsen || '-')}</div>
-                <div class="row"><span>Kurang UC (${totalUC}/${targetUC})</span><span style="color:${dendaUC > 0 ? '#f87171' : '#34d399'};">Rp ${dendaUC.toLocaleString('id-ID')}</span></div>
-                <div class="row"><span>Denda Late (${totalTerlambat}x)</span><span style="color:${dendaLate > 0 ? '#facc15' : '#34d399'};">Rp ${dendaLate.toLocaleString('id-ID')}</span></div>
-                <div class="row" style="border-top:1px solid rgba(255,255,255,0.1); margin-top:6px; padding-top:6px; font-weight:700;">
-                    <span>TOTAL DENDA</span>
+                <div class="tanggal" style="font-size:15px; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:10px; margin-bottom:10px;">
+                    ${escapeHtml(p.namaAbsen || '-')}
+                </div>
+                
+                <!-- RINCIAN UC -->
+                <div style="font-size:11px; font-weight:800; color:#38bdf8; margin-bottom:6px; letter-spacing:0.5px;">PEROLEHAN UC</div>
+                <div class="row"><span>Target UC</span><span>${targetUC} Unit</span></div>
+                <div class="row"><span>Perolehan UC (Okt)</span><span style="color:${kurangUC > 0 ? '#f87171' : '#34d399'}; font-weight:700;">${totalUC} Unit</span></div>
+                <div class="row"><span>Kekurangan UC</span><span style="color:${kurangUC > 0 ? '#f87171' : '#34d399'}; font-weight:700;">${kurangUC} Unit</span></div>
+                <div class="row"><span>Denda UC (${kurangUC} x 5rb)</span><span style="color:${dendaUC > 0 ? '#f87171' : '#34d399'};">Rp ${dendaUC.toLocaleString('id-ID')}</span></div>
+                
+                <!-- RINCIAN ABSENSI -->
+                <div style="font-size:11px; font-weight:800; color:#38bdf8; margin-top:14px; margin-bottom:6px; letter-spacing:0.5px;">ABSENSI & KETERLAMBATAN</div>
+                <div class="row"><span>Total Masuk</span><span>${totalHariMasuk} Hari</span></div>
+                <div class="row"><span>Total Terlambat</span><span style="color:${totalTerlambat > 0 ? '#facc15' : '#34d399'}; font-weight:700;">${totalTerlambat} Kali</span></div>
+                <div class="row"><span>Denda Late (${totalTerlambat} x 10rb)</span><span style="color:${dendaLate > 0 ? '#facc15' : '#34d399'};">Rp ${dendaLate.toLocaleString('id-ID')}</span></div>
+                
+                <!-- TOTAL DENDA -->
+                <div class="row" style="border-top:2px dashed rgba(255,255,255,0.2); margin-top:12px; padding-top:12px; font-weight:800; font-size:14px;">
+                    <span style="color:#fff;">TOTAL DENDA</span>
                     <span style="color:${totalDenda > 0 ? '#f87171' : '#34d399'};">Rp ${totalDenda.toLocaleString('id-ID')}</span>
                 </div>
             </div>
