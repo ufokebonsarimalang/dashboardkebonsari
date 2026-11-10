@@ -1431,9 +1431,11 @@ async function loadPromotorList(forceRefresh = false) {
     allPromotor = data;
   }
 
-  const list = Object.keys(allPromotor).map(k => ({ key: k, ...allPromotor[k] }))
+   const list = Object.keys(allPromotor).map(k => ({ key: k, ...allPromotor[k] }))
     // ✅ FIX: admin menyimpan aktif sebagai string 'YA'/'TIDAK'
     .filter(p => String(p.aktif || 'YA').toUpperCase() === 'YA')
+    // ✅ FIX: saring agar ADMIN tidak masuk dropdown
+    .filter(p => String(p.role || 'PROMOTOR').toUpperCase() !== 'ADMIN')
     .sort((a,b) => (a.namaAbsen || '').localeCompare(b.namaAbsen || ''));
 
   if (liveEl) liveEl.innerText = `${list.length} promotor terdaftar`;
@@ -2634,10 +2636,14 @@ function renderPerolehan() {
     if (!allPenjualan || allPenjualan.length === 0) {
         return `<div class="empty-state">${ICONS.empty}<div class="pesan">Belum ada data penjualan</div></div>`;
     }
-    const perPromotor = {};
+       const perPromotor = {};
     Object.keys(allPromotor).forEach(key => {
         const p = allPromotor[key];
-        if (p.aktif === false) return;
+        // ✅ FIX: gunakan string check, bukan boolean
+        if (String(p.aktif || 'YA').toUpperCase() !== 'YA') return;
+        if (String(p.role || 'PROMOTOR').toUpperCase() === 'ADMIN') return;
+        if (String(p.tampilWeb || 'YA').toUpperCase() === 'TIDAK') return;
+        
         perPromotor[key] = {
             key: key,
             nama: p.namaAbsen || '-',
@@ -2744,10 +2750,14 @@ function unduhExcelPerolehan() {
         showToast('Belum ada data penjualan untuk diunduh.', 'info');
         return;
     }
-    const perPromotor = {};
+       const perPromotor = {};
     Object.keys(allPromotor).forEach(key => {
         const p = allPromotor[key];
-        if (p.aktif === false) return;
+        // ✅ FIX: gunakan string check, bukan boolean
+        if (String(p.aktif || 'YA').toUpperCase() !== 'YA') return;
+        if (String(p.role || 'PROMOTOR').toUpperCase() === 'ADMIN') return;
+        if (String(p.tampilWeb || 'YA').toUpperCase() === 'TIDAK') return;
+        
         perPromotor[key] = { key: key, nama: p.namaAbsen || '-', omzet: 0, brand: 0, uc: 0 };
     });
     allPenjualan.forEach(x => {
@@ -2868,9 +2878,13 @@ async function renderDenda() {
         <div class="card-grid">
     `;
     
-    Object.keys(allPromotor).forEach(key => {
+     Object.keys(allPromotor).forEach(key => {
         const p = allPromotor[key];
-        if (p.aktif === false) return;
+        // ✅ FIX: gunakan string check, bukan boolean
+        if (String(p.aktif || 'YA').toUpperCase() !== 'YA') return;
+        if (String(p.role || 'PROMOTOR').toUpperCase() === 'ADMIN') return;
+        if (String(p.tampilWeb || 'YA').toUpperCase() === 'TIDAK') return;
+        
         const cleanNama = String(p.namaSalesId || p.namaSales || p.namaAbsen || '').trim().toUpperCase();
         
         let totalUC = 0;
