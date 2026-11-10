@@ -676,7 +676,13 @@ function parseAngka(val) {
 
 /* ===== DASHBOARD ===== */
 function renderDash() {
-  const jmlPromotor = Object.values(allMaster).filter(p => p.tampilWeb === 'YA' && p.aktif === 'YA').length;
+  // ✅ FIX: Filter diperketat pakai String().toUpperCase() & mengecualikan ADMIN
+  const jmlPromotor = Object.values(allMaster)
+    .filter(p => String(p.tampilWeb || 'YA').toUpperCase() === 'YA')
+    .filter(p => String(p.aktif || 'YA').toUpperCase() === 'YA')
+    .filter(p => String(p.role || 'PROMOTOR').toUpperCase() !== 'ADMIN')
+    .length;
+    
   const trans = Object.values(allPenjualan);
   const totalOmzet = trans.reduce((s, x) => s + (Number(x.subtotal) || 0), 0);
   return `
@@ -1110,8 +1116,11 @@ async function konfirmasiUploadPenjualan() {
 
 /* ===== MASTER PROMOTOR ===== */
 function renderMasterPromotor() {
-  const list = Object.keys(allMaster).map(k => ({ key: k, ...allMaster[k] }))
-    .filter(p => p.tampilWeb === 'YA' && p.aktif === 'YA')
+   const list = Object.keys(allMaster).map(k => ({ key: k, ...allMaster[k] }))
+    // ✅ FIX: pastikan string check & filter 3 lapis
+    .filter(p => String(p.tampilWeb || 'YA').toUpperCase() === 'YA')
+    .filter(p => String(p.aktif || 'YA').toUpperCase() === 'YA')
+    .filter(p => String(p.role || 'PROMOTOR').toUpperCase() !== 'ADMIN')
     .sort((a,b) => (a.namaAbsen || '').localeCompare(b.namaAbsen || ''));
   const totalAll = Object.keys(allMaster).length;
   return `
@@ -1476,8 +1485,11 @@ async function hapusAdmin(key, nama) {
 
 /* ===== TERLAMBAT ===== */
 function renderTerlambat() {
-  const list = Object.keys(allMaster).map(k => ({ key: k, ...allMaster[k] }))
-    .filter(p => p.tampilWeb === 'YA' && p.aktif === 'YA')
+   const list = Object.keys(allMaster).map(k => ({ key: k, ...allMaster[k] }))
+    // ✅ FIX: pastikan string check & filter 3 lapis
+    .filter(p => String(p.tampilWeb || 'YA').toUpperCase() === 'YA')
+    .filter(p => String(p.aktif || 'YA').toUpperCase() === 'YA')
+    .filter(p => String(p.role || 'PROMOTOR').toUpperCase() !== 'ADMIN')
     .sort((a,b) => (a.namaAbsen || '').localeCompare(b.namaAbsen || ''));
   const hariTerpilih = window._hariTerlambat || new Date().getDate();
   let html = `
