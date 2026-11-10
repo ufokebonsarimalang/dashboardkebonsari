@@ -1089,31 +1089,51 @@ async function konfirmasiUploadPenjualan() {
   const data = window._jualData;
   if (!data) return;
   const el = document.getElementById('penjualanInfo');
-  el.innerHTML = '<div class="alert warn"><span class="spinner spinner-dark"></span> Uploading...</div>';
+  el.innerHTML = '<div class="alert warn"><span class="spinner spinner-dark"></span> Memproses & Uploading...</div>';
+  
   try {
-    const snapAll = await window.dbGet(window.dbRef(window.db, 'penjualan/' + BULAN_INI + '/all'));
+    // ✅ FIX: Deteksi otomatis bulan dari tanggal transaksi pertama di Excel
+    let targetBulan = BULAN_INI; // Default bulan berjalan (November)
+    
+    if (data.length > 0 && data[0].tanggal) {
+        const tglStr = String(data[0].tanggal).trim(); // Contoh: "01/10/2026"
+        const parts = tglStr.split('/');
+        if (parts.length === 3) {
+            const bln = String(parts[1]).padStart(2, '0'); // Ambil angka bulan (10)
+            const thn = parts[2];
+            targetBulan = `${thn}-${bln}`; // Jadi "2026-10"
+        }
+    }
+
+    const snapAll = await window.dbGet(window.dbRef(window.db, 'penjualan/' + targetBulan + '/all'));
     const setExist = new Set();
     if (snapAll.exists()) Object.values(snapAll.val()).forEach(x => { if (x && x.noFaktur && x.barcode) setExist.add(x.noFaktur + '|' + x.barcode); });
+    
     const updates = {};
     let cBaru = 0, cSkip = 0;
     const salesTidakDikenal = new Set();
+    
     data.forEach((item, idx) => {
       const k = item.noFaktur + '|' + item.barcode;
       if (setExist.has(k)) { cSkip++; return; }
       const txId = `t_${Date.now()}_${idx}_${Math.random().toString(36).substr(2,6)}`;
-      updates[`penjualan/${BULAN_INI}/all/${txId}`] = item;
+      
+      // ✅ FIX: Gunakan targetBulan yang sudah dideteksi (Oktober)
+      updates[`penjualan/${targetBulan}/all/${txId}`] = item;
       const pk = cariPromotorKeyBySalesId(item.namaSales);
-      if (pk) updates[`penjualan/${BULAN_INI}/per_promotor/${pk}/${txId}`] = item;
+      if (pk) updates[`penjualan/${targetBulan}/per_promotor/${pk}/${txId}`] = item;
       else salesTidakDikenal.add(item.namaSales);
       cBaru++;
     });
+    
     await window.dbUpdate(window.dbRef(window.db), updates);
-    el.innerHTML = `<div class="alert ok">${cBaru} transaksi baru (${cSkip} duplikat)</div>
+    
+    el.innerHTML = `<div class="alert ok">${cBaru} transaksi baru dimasukkan ke folder <b>${targetBulan}</b> (${cSkip} duplikat diabaikan)</div>
       ${salesTidakDikenal.size > 0 ? `<div class="alert warn">Nama sales tidak dikenali: <b>${[...salesTidakDikenal].join(', ')}</b></div>` : ''}`;
     window._jualData = null;
+    
   } catch (err) { el.innerHTML = `<div class="alert err">${err.message}</div>`; }
 }
-
 /* ===== MASTER PROMOTOR ===== */
 function renderMasterPromotor() {
    const list = Object.keys(allMaster).map(k => ({ key: k, ...allMaster[k] }))
