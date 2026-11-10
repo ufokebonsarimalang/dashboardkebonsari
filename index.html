@@ -2837,25 +2837,29 @@ async function renderDenda() {
       return `<div class="empty-state">${ICONS.empty}<div class="pesan">Belum ada data promotor</div></div>`;
     }
 
+    // 1. TENTUKAN KODE BULAN
     const now = new Date();
-    let targetBulan = new Date(now.getFullYear(), now.getMonth(), 1); 
-    
-    if (now.getDate() <= 10) {
-      targetBulan = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    }
-    
-    const kodeBulanTarget = `${targetBulan.getFullYear()}-${String(targetBulan.getMonth() + 1).padStart(2, '0')}`;
+    const targetBulan = new Date(now.getFullYear(), now.getMonth() - 1, 1); 
+    const kodeBulanLalu = `${targetBulan.getFullYear()}-${String(targetBulan.getMonth() + 1).padStart(2, '0')}`; // 2026-10
+    const kodeBulanIni  = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`; // 2026-11
     const labelPeriode = new Date(targetBulan.getFullYear(), targetBulan.getMonth(), 1).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
 
     let penjualanDenda = [];
     let absensiDenda = {};
     
     try {
-        const snapJual = await window.dbGet(window.dbRef(window.db, `penjualan/${kodeBulanTarget}/all`));
+        // ==============================================================
+        // A. ABSENSI: Ambil dari folder BULAN INI (2026-11) krn isinya Oktober
+        // ==============================================================
+        const snapAbs = await window.dbGet(window.dbRef(window.db, `absensi/${kodeBulanIni}`));
+        if (snapAbs.exists()) absensiDenda = snapAbs.val();
+
+        // ==============================================================
+        // B. PENJUALAN (UC): Ambil MURNI dari folder BULAN LALU (2026-10)
+        // ==============================================================
+        const snapJual = await window.dbGet(window.dbRef(window.db, `penjualan/${kodeBulanLalu}/all`));
         if (snapJual.exists()) penjualanDenda = Object.values(snapJual.val());
         
-        const snapAbs = await window.dbGet(window.dbRef(window.db, `absensi/${kodeBulanTarget}`));
-        if (snapAbs.exists()) absensiDenda = snapAbs.val();
     } catch (e) {
         console.error("Gagal load data denda:", e);
     }
@@ -2863,7 +2867,7 @@ async function renderDenda() {
     let html = `
         <div class="summary-card">
             <h2>${ICONS.warning} Denda & Keterlambatan Semua Promotor</h2>
-            <p style="font-size:12px; color:#facc15; font-weight:700; margin-bottom:8px;">Periode Penilaian: ${labelPeriode} (Tgl 1 - Akhir Bulan)</p>
+            <p style="font-size:12px; color:#facc15; font-weight:700; margin-bottom:8px;">Periode Penilaian: ${labelPeriode} (Tgl 1 - 31)</p>
             <div style="display:flex; flex-wrap:wrap; gap:10px; margin-top:8px;">
                 <div style="flex:1; min-width:140px; background:rgba(239,68,68,0.1); padding:10px; border-radius:10px; border:1px solid rgba(239,68,68,0.3);">
                     <div style="font-size:10px; color:#9ca3af; font-weight:700;">DENDA UFO CARE</div>
@@ -2878,15 +2882,16 @@ async function renderDenda() {
         <div class="card-grid">
     `;
     
-     Object.keys(allPromotor).forEach(key => {
+    Object.keys(allPromotor).forEach(key => {
         const p = allPromotor[key];
-        // ✅ FIX: gunakan string check, bukan boolean
+        // Filter 3 lapis (aktif, bukan admin, tampil web)
         if (String(p.aktif || 'YA').toUpperCase() !== 'YA') return;
         if (String(p.role || 'PROMOTOR').toUpperCase() === 'ADMIN') return;
         if (String(p.tampilWeb || 'YA').toUpperCase() === 'TIDAK') return;
         
         const cleanNama = String(p.namaSalesId || p.namaSales || p.namaAbsen || '').trim().toUpperCase();
         
+        // --- HITUNG UC (DARI PENJUALAN OKTOBER) ---
         let totalUC = 0;
         penjualanDenda.forEach(x => { 
             if (!x || !x.namaSales) return;
@@ -2900,10 +2905,14 @@ async function renderDenda() {
             }
         });
 
+        // --- HITUNG TERLAMBAT (DARI ABSENSI NOVEMBER YG ISINYA OKTOBER) ---
         const absensiP = absensiDenda[key] || {};
         let totalTerlambat = 0;
+        
         Object.values(absensiP).forEach(a => {
-            if (a && String(a.terlambat || '').toUpperCase() === 'YA') totalTerlambat++;
+            if (!a) return;
+            const isLate = String(a.terlambat || '').toUpperCase() === 'YA';
+            if (isLate) totalTerlambat++;
         });
 
         const isIkutUC = String(p.ikutUC || 'YA').toUpperCase() !== 'TIDAK';
