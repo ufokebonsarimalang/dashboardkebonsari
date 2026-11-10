@@ -1419,7 +1419,8 @@ async function loadPromotorList(forceRefresh = false) {
   let data = forceRefresh ? null : cacheGet('promotor_list');
   if (!data) {
     try {
-      const snap = await window.dbGet(window.dbRef(window.db, 'users/promotor'));
+      // ✅ FIX: baca dari master_promotor (path yang dipakai admin)
+      const snap = await window.dbGet(window.dbRef(window.db, 'users/master_promotor'));
       allPromotor = snap.exists() ? snap.val() : {};
       cacheSet('promotor_list', allPromotor);
     } catch (err) {
@@ -1431,8 +1432,10 @@ async function loadPromotorList(forceRefresh = false) {
   }
 
   const list = Object.keys(allPromotor).map(k => ({ key: k, ...allPromotor[k] }))
-    .filter(p => p.aktif !== false)
+    // ✅ FIX: admin menyimpan aktif sebagai string 'YA'/'TIDAK'
+    .filter(p => String(p.aktif || 'YA').toUpperCase() === 'YA')
     .sort((a,b) => (a.namaAbsen || '').localeCompare(b.namaAbsen || ''));
+
   if (liveEl) liveEl.innerText = `${list.length} promotor terdaftar`;
   if (currentUser && currentUser.role === 'ADMIN') {
     isiDropdownPromotor(list);
@@ -1535,7 +1538,14 @@ function loadInfoRealtime() {
       infoData.promo = [];
       infoData.rules = [];
     }
-    
+      // ✅ TAMBAHAN: listener agar dropdown promotor auto-refresh saat admin tambah promotor baru
+  window.dbOnValue(window.dbRef(window.db, 'config/promotor_updated_at'), () => {
+    if (currentUser && currentUser.role === 'ADMIN') {
+      sessionStorage.removeItem('ufo_promotor_list');
+      sessionStorage.removeItem('ufo_penjualan_*');
+      loadPromotorList(true);
+    }
+  });
     // Jika promotor sedang membuka menu Promo atau SOP, update layarnya otomatis
     if (currentMenu === 'promo' || currentMenu === 'sop') {
       tampilkanDetail(currentMenu, true); // parameter true = jangan tampilkan loading
@@ -1558,15 +1568,15 @@ async function tampilkanDashboard() {
     loginType: 'google'
   };
 
-  if (window.firebaseUser.promotorKey && allPromotor[window.firebaseUser.promotorKey]) {
+   if (window.firebaseUser.promotorKey && allPromotor[window.firebaseUser.promotorKey]) {
     const p = allPromotor[window.firebaseUser.promotorKey];
     if (p.namaAbsen) {
       currentUser.namaAbsen = p.namaAbsen;
     }
-    currentUser.namaSales = p.namaSales || '';
+    // ✅ FIX: admin menyimpan field namaSalesId, bukan namaSales
+    currentUser.namaSales = p.namaSalesId || p.namaSales || '';
     currentUser.merk = p.merk || '';
   }
-
   document.body.classList.remove('login-active');
   document.body.classList.add('dashboard-active');
    // --- TAMBAHKAN DI DALAM FUNGSI tampilkanDashboard() ---
@@ -2036,7 +2046,8 @@ function getDataSaya() {
         : currentUser.key;
     const dataP = allPromotor[targetKey] || currentUser;
     const namaAbsenUser = String(dataP.namaAbsen || '').trim().toUpperCase();
-    const namaSalesUser = String(dataP.namaSales || '').trim().toUpperCase();
+    // ✅ FIX: fallback ke namaSalesId karena admin simpan field itu
+    const namaSalesUser = String(dataP.namaSalesId || dataP.namaSales || '').trim().toUpperCase();
     const semuaPenjualan = typeof allPenjualan !== 'undefined' ? allPenjualan : []; 
     return semuaPenjualan.filter(x => {
         if (!x) return false;
@@ -2641,7 +2652,7 @@ function renderPerolehan() {
         const merkBarang = String(x.merk || '').trim().toUpperCase();
         Object.keys(perPromotor).forEach(k => {
             const p = allPromotor[k];
-            const pSales = String(p.namaSales || '').trim().toUpperCase();
+                        const pSales = String(p.namaSalesId || p.namaSales || '').trim().toUpperCase();
             const pAbsen = String(p.namaAbsen || '').trim().toUpperCase();
             const pMerk = String(p.merk || '').trim().toUpperCase();
             if (salesName === pSales || salesName.includes(pAbsen) || pAbsen.includes(salesName)) {
@@ -2860,7 +2871,7 @@ async function renderDenda() {
     Object.keys(allPromotor).forEach(key => {
         const p = allPromotor[key];
         if (p.aktif === false) return;
-        const cleanNama = String(p.namaSales || p.namaAbsen || '').trim().toUpperCase();
+        const cleanNama = String(p.namaSalesId || p.namaSales || p.namaAbsen || '').trim().toUpperCase();
         
         let totalUC = 0;
         penjualanDenda.forEach(x => { 
