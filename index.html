@@ -1935,111 +1935,60 @@ async function tampilkanDetail(menuKey, isRealtimeUpdate = false) {
 }
 window.tampilkanDetail = tampilkanDetail;
 /* ===== HELPER ===== */
+const TAMPIL_NAMA_BULAN = false  // true = "09 November 2026", false = "09-11-2026"
+const NAMA_BULAN = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember']
+
+// Format laporan kasir: MM/DD/YYYY (atau ISO YYYY-MM-DD)
+function bacaTanggalKasir(str) {
+  const s = String(str || '').trim()
+  if (!s || s === '-' || !isNaN(Number(s))) return null
+
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/)
+  if (m) return { tgl: +m[3], bln: +m[2], thn: +m[1] }
+
+  const p = s.split(' ')[0].split('/')
+  if (p.length !== 3) return null
+  const bln = +p[0], tgl = +p[1]
+  let thn = +p[2]
+  if (isNaN(tgl) || isNaN(bln) || isNaN(thn)) return null
+  if (thn < 100) thn += 2000
+  if (bln < 1 || bln > 12 || tgl < 1 || tgl > 31) return null
+  return { tgl, bln, thn }
+}
+
 function tanggalKeNama(tglStr) {
-  if (!tglStr || tglStr === 'Tanpa Tanggal') return 'Tanpa Tanggal';
-  const s = String(tglStr).trim();
-  const namaBulan = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
-
-  // Format ISO (2026-11-04)
-  if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
-    const p = s.split(' ')[0].split('-');
-    return `${parseInt(p[2])} ${namaBulan[parseInt(p[1]) - 1]} ${p[0]}`;
-  }
-
-  // Format Kasir (MM/DD/YYYY) -> Bulan di depan
-  const parts = s.split('/');
-  if (parts.length === 3) {
-    let mm = parseInt(parts[0]); // Bulan
-    let dd = parseInt(parts[1]); // Tanggal
-    let yyyy = parseInt(parts[2]); // Tahun
-    
-    // Jika angkanya ternyata format Indonesia (Tgl/Bln/Thn), kita tukar
-    if (mm > 12) {
-      let temp = mm;
-      mm = dd;
-      dd = temp;
-    }
-    
-    if (mm >= 1 && mm <= 12 && !isNaN(dd) && !isNaN(yyyy)) {
-      return `${dd} ${namaBulan[mm - 1]} ${yyyy}`;
-    }
-  }
-  return s;
+  if (!tglStr || tglStr === 'Tanpa Tanggal') return 'Tanpa Tanggal'
+  const d = bacaTanggalKasir(tglStr)
+  if (!d) return String(tglStr).trim()
+  const dd = String(d.tgl).padStart(2, '0')
+  const mm = String(d.bln).padStart(2, '0')
+  return TAMPIL_NAMA_BULAN ? `${dd} ${NAMA_BULAN[d.bln - 1]} ${d.thn}` : `${dd}-${mm}-${d.thn}`
 }
+
 function parseTanggal(str) {
-  if (!str) return null;
-  const s = String(str).trim();
-  if (s === '' || s === '-' || !isNaN(Number(s))) return null;
-
-  if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
-    const p = s.split(' ')[0].split('-');
-    return new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]));
-  }
-  
-  const p = s.split('/');
-  if (p.length === 3) {
-    let mm = Number(p[0]); // Bulan
-    let dd = Number(p[1]); // Tanggal
-    let yyyy = Number(p[2]); // Tahun
-    
-    if (mm > 12) {
-      let temp = mm;
-      mm = dd;
-      dd = temp;
-    }
-    
-    const d = new Date(yyyy, mm - 1, dd);
-    return isNaN(d.getTime()) ? null : d;
-  }
-  return null;
+  const d = bacaTanggalKasir(str)
+  return d ? new Date(d.thn, d.bln - 1, d.tgl) : null
 }
+
 function getPeriodeRentangDinamis() {
-  const namaBulan = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
-  const semuaPenjualan = typeof allPenjualan !== 'undefined' ? allPenjualan : [];
+  const semua = typeof allPenjualan !== 'undefined' ? allPenjualan : []
+  if (!semua || semua.length === 0) return { pertama: '-', terakhir: '-' }
 
-  if (!semuaPenjualan || semuaPenjualan.length === 0) return { pertama: '-', terakhir: '-' };
+  const now = new Date()
+  const tgls = []
+  semua.forEach(x => {
+    const d = x && bacaTanggalKasir(x.tanggal)
+    if (d && d.thn === now.getFullYear() && d.bln === now.getMonth() + 1) tgls.push(d)
+  })
+  if (tgls.length === 0) return { pertama: '-', terakhir: '-' }
 
-  const today = new Date();
-  const targetBulan = today.getMonth(); // 10 (November)
-  const targetTahun = today.getFullYear(); // 2026
-  const tanggalValid = [];
-
-  semuaPenjualan.forEach(x => {
-    if (!x || !x.tanggal) return;
-    const s = String(x.tanggal).trim();
-    
-    // Baca format ISO (2026-11-01)
-    if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
-      const p = s.split(' ')[0].split('-');
-      const thn = Number(p[0]), bln = Number(p[1]), tgl = Number(p[2]);
-      if (thn === targetTahun && bln === targetBulan + 1) {
-        tanggalValid.push({ tgl, bln, thn });
-      }
-      return;
-    }
-
-    // Baca format Indonesia / Kasir (01/11/2026)
-    const m = s.split('/');
-    if (m.length === 3) {
-      // Paksa baca format DD/MM/YYYY (Tanggal dulu, baru Bulan)
-      const tgl = Number(m[0]); 
-      const bln = Number(m[1]); 
-      const thn = Number(m[2]); 
-
-      if (thn === targetTahun && bln === targetBulan + 1 && tgl >= 1 && tgl <= 31) {
-        tanggalValid.push({ tgl, bln, thn });
-      }
-    }
-  });
-
-  if (tanggalValid.length === 0) return { pertama: '-', terakhir: '-' };
-
-  tanggalValid.sort((a, b) => a.tgl - b.tgl);
-  const min = tanggalValid[0];
-  const max = tanggalValid[tanggalValid.length - 1];
-
-  const fmt = (d) => `${String(d.tgl).padStart(2, '0')} ${namaBulan[d.bln - 1]} ${d.thn}`;
-  return { pertama: fmt(min), terakhir: fmt(max) };
+  tgls.sort((a, b) => a.tgl - b.tgl)
+  const fmt = (d) => {
+    const dd = String(d.tgl).padStart(2, '0')
+    const mm = String(d.bln).padStart(2, '0')
+    return TAMPIL_NAMA_BULAN ? `${dd} ${NAMA_BULAN[d.bln - 1]} ${d.thn}` : `${dd}-${mm}-${d.thn}`
+  }
+  return { pertama: fmt(tgls[0]), terakhir: fmt(tgls[tgls.length - 1]) }
 }
 function getDataSaya() {
     if (!currentUser) return [];
